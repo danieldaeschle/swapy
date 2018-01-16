@@ -32,6 +32,21 @@ def _json_middleware(f):
     return handle
 
 
+def _html_middleware(f):
+    def handle(*args, **kwargs):
+        result = f(*args, **kwargs)
+        if type(result) == tuple:
+            body = result[0]
+            code = result[1] if len(result) > 1 else 200
+            headers = result[2] if len(result) > 2 else {}
+            headers['Content-Type'] = 'text/html'
+            return body, code, headers
+        return result, 200, {'Content-Type': 'text/html'}
+    return handle
+
+
 JsonException = _json_exception
 JsonMiddleware = _json_middleware
+
+HtmlMiddleware = _html_middleware
 ExceptionMiddleware = _exception_middleware

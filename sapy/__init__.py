@@ -5,6 +5,8 @@ from werkzeug.exceptions import HTTPException
 from werkzeug.serving import run_simple
 from werkzeug.routing import Rule, Map
 from werkzeug.wsgi import responder
+from werkzeug.urls import iri_to_uri
+from werkzeug.utils import escape
 from .middlewares import ExceptionMiddleware
 import os
 import mimetypes
@@ -62,6 +64,16 @@ def _find_route(name):
             if route['url'] == name:
                 return route
     return None
+
+
+def redirect(location, code=301):
+    location = iri_to_uri(location, safe_conversion=True)
+    response = '<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2 Final//EN">\n'\
+        '<title>Redirecting...</title>\n'\
+        '<h1>Redirecting...</h1>\n'\
+        '<p>You should be redirected automatically to target URL: '\
+        '<a href="{}">{}</a>.  If not click the link.'.format(escape(location), escape(location))
+    return response, code, {'Location': location, 'Content-Type': 'text/html'}
 
 
 def send_file(path, name=None):

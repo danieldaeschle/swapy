@@ -1,15 +1,20 @@
-from sapy import on_get, run, include, use, on, error, send_file
-from sapy.middlewares import JsonMiddleware, JsonException
+from sapy import on_get, run, include, use, on, error, send_file, redirect
+from sapy.middlewares import JsonMiddleware, JsonException, HtmlMiddleware
 import another
 
 error(JsonException)
-# use(JsonMiddleware)
+use(HtmlMiddleware)
 include(another, '/v1')
 
 
 @on_get()
 def root():
-    return '<h1>test</h1>', 200
+    return 'Hello Sapify! :)'
+
+
+@on_get('redirect')
+def redirect():
+    return redirect('https://google.de')
 
 
 @on_get('/file')
@@ -33,4 +38,4 @@ def not_found(req):
     
 
 if __name__ == '__main__':
-    run(debug=False)
+    run(debug=True)
