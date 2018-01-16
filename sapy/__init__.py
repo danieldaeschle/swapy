@@ -6,6 +6,8 @@ from werkzeug.serving import run_simple
 from werkzeug.routing import Rule, Map
 from werkzeug.wsgi import responder
 from .middlewares import ExceptionMiddleware
+import os
+import mimetypes
 
 
 _url_map = {}
@@ -42,7 +44,10 @@ def _error(e, module):
     global _on_error
     try:
         res = _on_error[module](e)
-        return Response(*res)
+        if type(res) == tuple:
+            return Response(*res)
+        else:
+            return Response(res)
     except TypeError:
         return e
 
@@ -57,6 +62,17 @@ def _find_route(name):
             if route['url'] == name:
                 return route
     return None
+
+
+def send_file(path, name=None):
+    file = open(path)
+    if file:
+        mime = mimetypes.guess_type(path)[0]
+        size = os.path.getsize(path)
+        filename = os.path.basename(path) if not name else name
+        headers = {'Content-Type': mime, 'Content-Disposition': 'attachment;filename='+filename, 'Content-Length': size}
+        return file.read(), 200, headers
+    raise FileNotFoundError()
 
 
 def register_route(url='/', methods=('GET', 'POST', 'PUT', 'DELETE')):
@@ -186,10 +202,11 @@ def app(name):
                     else:
                         response = Response(res)
                 except HTTPException as ex:
+                    print('test')
                     return _error(ex, name)
                 return response
             return urls.dispatch(dispatch, catch_http_exceptions=True)
-        except HTTPException as e:
+        except Exception as e:
             return _error(e, name)
     return application
 

@@ -5,7 +5,8 @@ from werkzeug.exceptions import HTTPException
 def _json_exception(error):
     if isinstance(error, HTTPException):
         return json.dumps({'message': str(error), 'status_code': error.code}, indent=4), error.code
-    return error
+    else:
+        return json.dumps({'message': str(error), 'status_code': 500}, indent=4), 500
 
 
 def _exception_middleware(error):

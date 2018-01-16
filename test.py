@@ -1,15 +1,20 @@
-from sapy import on_get, run, include, use, on, error
+from sapy import on_get, run, include, use, on, error, send_file
 from sapy.middlewares import JsonMiddleware, JsonException
 import another
 
 error(JsonException)
-use(JsonMiddleware)
+# use(JsonMiddleware)
 include(another, '/v1')
 
 
 @on_get()
 def root():
-    return 'test', 200
+    return '<h1>test</h1>', 200
+
+
+@on_get('/file')
+def file():
+    return send_file('test.py')
 
 
 @on_get('/error')
@@ -28,4 +33,4 @@ def not_found(req):
     
 
 if __name__ == '__main__':
-    run(debug=True)
+    run(debug=False)
