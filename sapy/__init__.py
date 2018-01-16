@@ -1,139 +1,201 @@
-from flask import Flask, request as f_req, jsonify
-from werkzeug.exceptions import HTTPException
 import inspect
-from .request import Request
 import uuid
+from werkzeug.wrappers import Request, Response
+from werkzeug.exceptions import HTTPException
+from werkzeug.serving import run_simple
+from werkzeug.routing import Rule, Map
+from werkzeug.wsgi import responder
+from .middlewares import ExceptionMiddleware
 
-_app = None
+
+_url_map = {}
+_middlewares = {}
+_on_error = {}
 _routes = {}
-_decorators = {}
-_on_error = None
 
 
 def _caller():
+    """Returns the module which calls sapy"""
+
     return inspect.currentframe().f_back.f_back.f_globals['__name__']
 
 
 def _init(name):
-    global _app, _routes, _decorators
-    if not _app:
-        _app = Flask(__name__)
-        for cls in HTTPException.__subclasses__():
-            _app.register_error_handler(cls, _error)
-    if not name in _routes:
-        _routes[name] = []
-    if not name in _decorators:
-        _decorators[name] = []
+    """Adds every module which is calling first time to routes and middlewares"""
+
+    global _url_map, _middlewares, _on_error
+    # if not _app:
+    #     _app = Flask(__name__)
+    #     for cls in HTTPException.__subclasses__():
+    #         _app.register_error_handler(cls, _error)
+    if name not in _url_map:
+        _url_map[name] = Map([])
+    if name not in _routes:
+        _routes[name] = {}
+    if name not in _middlewares:
+        _middlewares[name] = []
+    if name not in _on_error:
+        _on_error[name] = ExceptionMiddleware
 
 
-def _error(error):
+def _error(e, module):
     global _on_error
-    code = 500
-    if isinstance(error, HTTPException):
-        code = error.code
-    if _on_error:
-        return _on_error(error, code)
-    return str(error), code
+    try:
+        res = _on_error[module](e)
+        return Response(*res)
+    except TypeError:
+        return e
 
 
-def _register_route(url='/', methods=['GET', 'POST', 'PUT', 'DELETE']):
-    global _routes, _decorators
+def _find_route(name):
+    """Returns the route by name"""
+
+    global _url_map
+    for module in _url_map.keys():
+        routes = _url_map[module]
+        for route in routes:
+            if route['url'] == name:
+                return route
+    return None
+
+
+def register_route(url='/', methods=('GET', 'POST', 'PUT', 'DELETE')):
+    """Adds a route to the module which calls this"""
+
+    global _url_map, _middlewares, _on_error, _routes
+    
+    #  Adjust path
     if not url.startswith('/'):
         url = '/{}'.format(url)
-    def decorator(f):
-        decorators = _decorators[_caller()]
-        def handle():
-            r = Request(
-                f_req.method, f_req.headers, f_req.data,
-                f_req.cookies, f_req.remote_addr,
-                f_req.args, f_req.files, f_req.form,
-                f_req.url
-            )
-            try:
-                res = f(r)
-            except TypeError:
-                res = f()
-            if res:
-                def use_decorators(output):
-                    for deco in decorators:
-                        output = deco(output)
-                    return output
+    if url == '/*':
+        url = '/<path:path>'
 
-                if res is tuple:
-                    return use_decorators(res[0]) if res else None, res[1] if len(res) > 1 else None, res[2] if len(res) > 2 else None
-                else:
-                    return use_decorators(res)
+    def decorator(f):
+        mws = _middlewares[_caller()]
+
+        def handle(*args, **kwargs):
+            target = f
+            req = kwargs['req']
+            for m in mws:
+                target = m(target)
+            try:
+                res = target(req)
+            except TypeError:
+                res = target()
+            if res:
+                return res
             else:
                 return ''
-        handle.__name__ = str(uuid.uuid4())
-        _routes[_caller()].append([url, methods, handle])
+        name = str(uuid.uuid4())
+        route = Rule(url, methods=methods, endpoint=name, strict_slashes=False)
+        _url_map[_caller()].add(route)
+        _routes[_caller()][name] = {'function': handle, 'on_error': _on_error[_caller()]}
         return f
     return decorator
 
 
-def on(url='/', methods=['GET', 'POST', 'PUT', 'DELETE']):
+def error(f):
+    global _on_error
+    _on_error[_caller()] = f
+
+
+def on(url='/', methods=('GET', 'POST', 'PUT', 'DELETE')):
+    """Route registerer for all http methods"""
+
     _init(_caller())
-    return _register_route(url, methods)
+    return register_route(url, methods)
 
 
 def on_get(url='/'):
+    """Route registerer for GET http method"""
+
     _init(_caller())
-    return _register_route(url, methods=['GET'])
+    return register_route(url, methods=['GET'])
 
 
 def on_post(url='/'):
+    """Route registerer for POST http method"""
+
     _init(_caller())
-    return _register_route(url, methods=['POST'])
+    return register_route(url, methods=['POST'])
 
 
 def on_put(url='/'):
+    """Route registerer for PUT http method"""
+
     _init(_caller())
-    return _register_route(url, methods=['PUT'])
+    return register_route(url, methods=['PUT'])
 
 
 def on_delete(url='/'):
+    """Route registerer for DELETE http method"""
+
     _init(_caller())
-    return _register_route(url, methods=['DELETE'])
+    return register_route(url, methods=['DELETE'])
 
 
 def include(module, prefix=''):
-    global _routes
+    """Includes a module into antoher module"""
+
+    global _url_map
     _init(_caller())
     _init(module.__name__)
     if not prefix.startswith('/') and len(prefix) >= 1:
         prefix = '/{}'.format(prefix)
     if prefix == '/':
         prefix = ''
-    routes = _routes[module.__name__]
-    for route in routes:
-        route[0] = '{}{}'.format(prefix, route[0])
-        _routes[_caller()].append(route)
+    routes = _url_map[module.__name__]
+    for route in routes.iter_rules():
+        rule = '{}{}'.format(prefix, route.rule)
+        new_route = Rule(rule, endpoint=route.endpoint, methods=route.methods, strict_slashes=False)
+        _url_map[_caller()].add(new_route)
+    for name in _routes[module.__name__].keys():
+        _routes[_caller()][name] = _routes[module.__name__][name]
 
 
-def use(decorator):
-    global _decorators
+def use(middleware):
+    """Registers middlewares for global use"""
+
     _init(_caller())
-    if callable(decorator):
-        _decorators[_caller()].append(decorator)
-
-
-def on_error(f):
-    global _on_error
-    res = f()
-    if callable(res):
-        _on_error = res
-    else:
-        raise Exception('{} is not a function'.format(f.__name__))
-
+    _middlewares[_caller()].append(middleware)
+    
 
 def app(name):
-    global _app, _routes
-    _init(name)
-    routes = _routes[name]
-    for url, methods, f in routes:
-        _app.add_url_rule(url, methods=methods, view_func=f)
-    return _app
+    """Returns the app"""
+
+    global _url_map, _routes
+
+    @responder
+    def application(environ, start_response):
+        urls = _url_map[name].bind_to_environ(environ)
+        req = Request(environ)
+
+        try:
+            def dispatch(endpoint, args):
+                try:
+                    args = dict(args)
+                    setattr(req, 'url_args', args)
+                    f = _routes[name][endpoint]['function']
+                    res = f(req=req)
+                    if type(res) == tuple and type(res[0]) != str:
+                        raise Exception('Type {} in "{}" is not serializable as output'.format(type(res[0]), req.path))
+                    elif type(res) != tuple and type(res) != str:
+                        raise Exception('Type {} in "{}" is not serializable as output'.format(type(res), req.path))
+                    if type(res) == tuple:
+                        response = Response(*res)
+                    else:
+                        response = Response(res)
+                except HTTPException as ex:
+                    return _error(ex, name)
+                return response
+            return urls.dispatch(dispatch, catch_http_exceptions=True)
+        except HTTPException as e:
+            return _error(e, name)
+    return application
 
 
-def run(host='127.0.0.1', port=5000, debug=False, **options):
-    app(_caller()).run(host, port, debug, **options)
+def run(host='127.0.0.1', port=5000, debug=False):
+    """Runs the app"""
+
+    run_simple(host, port, app(_caller()), use_debugger=debug, use_reloader=debug)
+    # app(_caller()).run(host, port, debug, **options)
