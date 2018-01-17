@@ -1,10 +1,10 @@
 import inspect
 import uuid
 from werkzeug.wrappers import Request, Response
-from werkzeug.exceptions import HTTPException
+from werkzeug.exceptions import HTTPException, NotFound
 from werkzeug.serving import run_simple
 from werkzeug.routing import Rule, Map
-from werkzeug.wsgi import responder
+from werkzeug.wsgi import responder, FileWrapper
 from werkzeug.urls import iri_to_uri
 from werkzeug.utils import escape
 from .middlewares import ExceptionMiddleware
@@ -16,6 +16,7 @@ _url_map = {}
 _middlewares = {}
 _on_error = {}
 _routes = {}
+_debug = {}
 
 
 def _caller():
@@ -27,7 +28,7 @@ def _caller():
 def _init(name):
     """Adds every module which is calling first time to routes and middlewares"""
 
-    global _url_map, _middlewares, _on_error
+    global _url_map, _middlewares, _on_error, _debug
     # if not _app:
     #     _app = Flask(__name__)
     #     for cls in HTTPException.__subclasses__():
@@ -40,6 +41,8 @@ def _init(name):
         _middlewares[name] = []
     if name not in _on_error:
         _on_error[name] = ExceptionMiddleware
+    if name not in _debug:
+        _debug[name] = False
 
 
 def _error(e, module):
@@ -54,6 +57,10 @@ def _error(e, module):
         return e
 
 
+def _not_found(e, module):
+    pass
+
+
 def _find_route(name):
     """Returns the route by name"""
 
@@ -66,32 +73,11 @@ def _find_route(name):
     return None
 
 
-def redirect(location, code=301):
-    location = iri_to_uri(location, safe_conversion=True)
-    response = '<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2 Final//EN">\n'\
-        '<title>Redirecting...</title>\n'\
-        '<h1>Redirecting...</h1>\n'\
-        '<p>You should be redirected automatically to target URL: '\
-        '<a href="{}">{}</a>.  If not click the link.'.format(escape(location), escape(location))
-    return response, code, {'Location': location, 'Content-Type': 'text/html'}
-
-
-def send_file(path, name=None):
-    file = open(path)
-    if file:
-        mime = mimetypes.guess_type(path)[0]
-        size = os.path.getsize(path)
-        filename = os.path.basename(path) if not name else name
-        headers = {'Content-Type': mime, 'Content-Disposition': 'attachment;filename='+filename, 'Content-Length': size}
-        return file.read(), 200, headers
-    raise FileNotFoundError()
-
-
-def register_route(url='/', methods=('GET', 'POST', 'PUT', 'DELETE')):
+def _register_route(module, url='/', methods=('GET', 'POST', 'PUT', 'DELETE')):
     """Adds a route to the module which calls this"""
 
     global _url_map, _middlewares, _on_error, _routes
-    
+
     #  Adjust path
     if not url.startswith('/'):
         url = '/{}'.format(url)
@@ -99,9 +85,9 @@ def register_route(url='/', methods=('GET', 'POST', 'PUT', 'DELETE')):
         url = '/<path:path>'
 
     def decorator(f):
-        mws = _middlewares[_caller()]
+        mws = _middlewares[module]
 
-        def handle(*args, **kwargs):
+        def handle(*_, **kwargs):
             target = f
             req = kwargs['req']
             for m in mws:
@@ -114,56 +100,89 @@ def register_route(url='/', methods=('GET', 'POST', 'PUT', 'DELETE')):
                 return res
             else:
                 return ''
+
         name = str(uuid.uuid4())
         route = Rule(url, methods=methods, endpoint=name, strict_slashes=False)
-        _url_map[_caller()].add(route)
-        _routes[_caller()][name] = {'function': handle, 'on_error': _on_error[_caller()]}
+        _url_map[module].add(route)
+        _routes[module][name] = {'function': handle, 'on_error': _on_error[module]}
         return f
+
     return decorator
+
+
+def redirect(location, code=301):
+    location = iri_to_uri(location, safe_conversion=True)
+    response = '<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2 Final//EN">\n'\
+        '<title>Redirecting...</title>\n'\
+        '<h1>Redirecting...</h1>\n'\
+        '<p>You should be redirected automatically to target URL: '\
+        '<a href="{}">{}</a>.  If not click the link.'.format(escape(location), escape(location))
+    return response, code, {'Location': location, 'Content-Type': 'text/html'}
+
+
+def file(path, name=None):
+    f = open(path, 'rb')
+    if file:
+        mime = mimetypes.guess_type(path)[0]
+        size = os.path.getsize(path)
+        filename = os.path.basename(path) if not name else name
+        headers = {'Content-Type': mime, 'Content-Disposition': 'attachment;filename='+filename, 'Content-Length': size}
+        return FileWrapper(f, 8192), 200, headers
+    raise FileNotFoundError()
+
+
+def favicon(path):
+    _register_route(_caller(), '/favicon.ico')(lambda: file(path))
 
 
 def error(f):
     global _on_error
+    _init(_caller())
     _on_error[_caller()] = f
 
 
 def on(url='/', methods=('GET', 'POST', 'PUT', 'DELETE')):
     """Route registerer for all http methods"""
 
-    _init(_caller())
-    return register_route(url, methods)
+    module = _caller()
+    _init(module)
+    return _register_route(module, url, methods)
 
 
 def on_get(url='/'):
     """Route registerer for GET http method"""
 
-    _init(_caller())
-    return register_route(url, methods=['GET'])
+    module = _caller()
+    _init(module)
+    return _register_route(module, url, methods=['GET'])
 
 
 def on_post(url='/'):
     """Route registerer for POST http method"""
 
-    _init(_caller())
-    return register_route(url, methods=['POST'])
+    module = _caller()
+    _init(module)
+    return _register_route(module, url, methods=['POST'])
 
 
 def on_put(url='/'):
     """Route registerer for PUT http method"""
 
-    _init(_caller())
-    return register_route(url, methods=['PUT'])
+    module = _caller()
+    _init(module)
+    return _register_route(module, url, methods=['PUT'])
 
 
 def on_delete(url='/'):
     """Route registerer for DELETE http method"""
 
-    _init(_caller())
-    return register_route(url, methods=['DELETE'])
+    module = _caller()
+    _init(module)
+    return _register_route(module, url, methods=['DELETE'])
 
 
 def include(module, prefix=''):
-    """Includes a module into antoher module"""
+    """Includes a module into another module"""
 
     global _url_map
     _init(_caller())
@@ -191,10 +210,10 @@ def use(middleware):
 def app(name):
     """Returns the app"""
 
-    global _url_map, _routes
+    global _url_map, _routes, _debug
 
     @responder
-    def application(environ, start_response):
+    def application(environ, _):
         urls = _url_map[name].bind_to_environ(environ)
         req = Request(environ)
 
@@ -204,27 +223,40 @@ def app(name):
                     args = dict(args)
                     setattr(req, 'url_args', args)
                     f = _routes[name][endpoint]['function']
-                    res = f(req=req)
-                    if type(res) == tuple and type(res[0]) != str:
-                        raise Exception('Type {} in "{}" is not serializable as output'.format(type(res[0]), req.path))
-                    elif type(res) != tuple and type(res) != str:
-                        raise Exception('Type {} in "{}" is not serializable as output'.format(type(res), req.path))
+                    try:
+                        res = f(req=req)
+                    except TypeError:
+                        res = f()
+                    if type(res) == tuple and type(res[0]) != str and type(res[0]) != FileWrapper:
+                        raise TypeError('Type {} in "{}" is not serializable as output'.format(type(res[0]), req.path))
+                    elif type(res) != tuple and type(res) != str and type(res) != FileWrapper:
+                        raise TypeError('Type {} in "{}" is not serializable as output'.format(type(res), req.path))
                     if type(res) == tuple:
-                        response = Response(*res)
+                        if type(res[0]) == FileWrapper:
+                            response = Response(*res, direct_passthrough=True)
+                        else:
+                            response = Response(*res)
                     else:
-                        response = Response(res)
+                        if type(res) == FileWrapper:
+                            response = Response(res, direct_passthrough=True)
+                        else:
+                            response = Response(res)
+                except NotFound as ex:
+                    return _not_found(ex, name)
                 except HTTPException as ex:
-                    print('test')
                     return _error(ex, name)
                 return response
-            return urls.dispatch(dispatch, catch_http_exceptions=True)
+            return urls.dispatch(dispatch)
         except Exception as e:
-            return _error(e, name)
+            if not _debug[name]:
+                return _error(e, name)
+            return e
     return application
 
 
 def run(host='127.0.0.1', port=5000, debug=False):
     """Runs the app"""
+    global _debug
 
+    _debug[_caller()] = debug
     run_simple(host, port, app(_caller()), use_debugger=debug, use_reloader=debug)
-    # app(_caller()).run(host, port, debug, **options)
