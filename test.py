@@ -3,7 +3,6 @@ from sapy.middlewares import JsonMiddleware, JsonException, HtmlMiddleware
 import another
 
 error(JsonException)
-use(HtmlMiddleware)
 favicon('favicon.png')
 include(another, '/v1')
 
@@ -32,6 +31,11 @@ def file():
 @on_get('/error')
 def error():
     return object
+
+
+@on_get('/error2')
+def error():
+    raise TypeError('lol')
 
 
 @on_get('json')

@@ -15,8 +15,8 @@ import mimetypes
 _url_map = {}
 _middlewares = {}
 _on_error = {}
+_on_not_found = {}
 _routes = {}
-_debug = {}
 
 
 def _caller():
@@ -28,11 +28,8 @@ def _caller():
 def _init(name):
     """Adds every module which is calling first time to routes and middlewares"""
 
-    global _url_map, _middlewares, _on_error, _debug
-    # if not _app:
-    #     _app = Flask(__name__)
-    #     for cls in HTTPException.__subclasses__():
-    #         _app.register_error_handler(cls, _error)
+    global _url_map, _middlewares, _on_error, _on_not_found
+
     if name not in _url_map:
         _url_map[name] = Map([])
     if name not in _routes:
@@ -41,8 +38,8 @@ def _init(name):
         _middlewares[name] = []
     if name not in _on_error:
         _on_error[name] = ExceptionMiddleware
-    if name not in _debug:
-        _debug[name] = False
+    if name not in _on_not_found:
+        _debug[name] = ExceptionMiddleware
 
 
 def _error(e, module):
@@ -58,7 +55,15 @@ def _error(e, module):
 
 
 def _not_found(e, module):
-    pass
+    global _on_not_found
+    try:
+        res = _on_not_found[module](e)
+        if type(res) == tuple:
+            return Response(*res)
+        else:
+            return Response(res)
+    except TypeError:
+        return e
 
 
 def _find_route(name):
@@ -110,6 +115,43 @@ def _register_route(module, url='/', methods=('GET', 'POST', 'PUT', 'DELETE')):
     return decorator
 
 
+def _build_app(module):
+    """Returns the app"""
+
+    global _url_map, _routes, _debug
+
+    @responder
+    def application(environ, _):
+        urls = _url_map[module].bind_to_environ(environ)
+        req = Request(environ)
+
+        def dispatch(endpoint, args):
+            try:
+                args = dict(args)
+                setattr(req, 'url_args', args)
+                f = _routes[module][endpoint]['function']
+                try:
+                    res = f(req=req)
+                except KeyError:
+                    res = f()
+
+                # Checks if the type is iterable to prevent more errors
+                iter(res)
+
+                if type(res) == tuple and type(res[0]) == FileWrapper:
+                    return Response(*res, direct_passthrough=True)
+                elif type(res) == FileWrapper:
+                    return Response(res, direct_passthrough=True)
+                else:
+                    return Response(res)
+            except NotFound as ex:
+                return _not_found(ex, module)
+            except HTTPException as ex:
+                return _error(ex, module)
+        return urls.dispatch(dispatch)
+    return application
+
+
 def redirect(location, code=301):
     location = iri_to_uri(location, safe_conversion=True)
     response = '<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2 Final//EN">\n'\
@@ -139,6 +181,12 @@ def error(f):
     global _on_error
     _init(_caller())
     _on_error[_caller()] = f
+
+
+def not_found(f):
+    global _on_not_found
+    _init(_caller())
+    _on_not_found[_caller()] = f
 
 
 def on(url='/', methods=('GET', 'POST', 'PUT', 'DELETE')):
@@ -205,58 +253,15 @@ def use(middleware):
 
     _init(_caller())
     _middlewares[_caller()].append(middleware)
-    
 
-def app(name):
-    """Returns the app"""
 
-    global _url_map, _routes, _debug
-
-    @responder
-    def application(environ, _):
-        urls = _url_map[name].bind_to_environ(environ)
-        req = Request(environ)
-
-        try:
-            def dispatch(endpoint, args):
-                try:
-                    args = dict(args)
-                    setattr(req, 'url_args', args)
-                    f = _routes[name][endpoint]['function']
-                    try:
-                        res = f(req=req)
-                    except TypeError:
-                        res = f()
-                    if type(res) == tuple and type(res[0]) != str and type(res[0]) != FileWrapper:
-                        raise TypeError('Type {} in "{}" is not serializable as output'.format(type(res[0]), req.path))
-                    elif type(res) != tuple and type(res) != str and type(res) != FileWrapper:
-                        raise TypeError('Type {} in "{}" is not serializable as output'.format(type(res), req.path))
-                    if type(res) == tuple:
-                        if type(res[0]) == FileWrapper:
-                            response = Response(*res, direct_passthrough=True)
-                        else:
-                            response = Response(*res)
-                    else:
-                        if type(res) == FileWrapper:
-                            response = Response(res, direct_passthrough=True)
-                        else:
-                            response = Response(res)
-                except NotFound as ex:
-                    return _not_found(ex, name)
-                except HTTPException as ex:
-                    return _error(ex, name)
-                return response
-            return urls.dispatch(dispatch)
-        except Exception as e:
-            if not _debug[name]:
-                return _error(e, name)
-            return e
-    return application
+def app():
+    module = _caller()
+    return _build_app(module)
 
 
 def run(host='127.0.0.1', port=5000, debug=False):
     """Runs the app"""
-    global _debug
 
-    _debug[_caller()] = debug
-    run_simple(host, port, app(_caller()), use_debugger=debug, use_reloader=debug)
+    module = _caller()
+    run_simple(host, port, _build_app(module), use_debugger=debug, use_reloader=debug)
