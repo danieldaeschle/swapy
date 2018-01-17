@@ -2,7 +2,7 @@ import inspect
 import uuid
 from werkzeug.wrappers import Request, Response
 from werkzeug.exceptions import HTTPException, NotFound
-from werkzeug.serving import run_simple
+from werkzeug.serving import run_simple, make_ssl_devcert
 from werkzeug.routing import Rule, Map
 from werkzeug.wsgi import responder, FileWrapper
 from werkzeug.urls import iri_to_uri
@@ -17,6 +17,7 @@ _middlewares = {}
 _on_error = {}
 _on_not_found = {}
 _routes = {}
+_ssl = {}
 
 
 def _caller():
@@ -25,21 +26,23 @@ def _caller():
     return inspect.currentframe().f_back.f_back.f_globals['__name__']
 
 
-def _init(name):
+def _init(module):
     """Adds every module which is calling first time to routes and middlewares"""
 
-    global _url_map, _middlewares, _on_error, _on_not_found
+    global _url_map, _middlewares, _on_error, _on_not_found, _ssl
 
-    if name not in _url_map:
-        _url_map[name] = Map([])
-    if name not in _routes:
-        _routes[name] = {}
-    if name not in _middlewares:
-        _middlewares[name] = []
-    if name not in _on_error:
-        _on_error[name] = ExceptionMiddleware
-    if name not in _on_not_found:
-        _debug[name] = ExceptionMiddleware
+    if module not in _url_map:
+        _url_map[module] = Map([])
+    if module not in _routes:
+        _routes[module] = {}
+    if module not in _middlewares:
+        _middlewares[module] = []
+    if module not in _on_error:
+        _on_error[module] = ExceptionMiddleware
+    if module not in _on_not_found:
+        _on_not_found[module] = ExceptionMiddleware
+    if module not in _ssl:
+        _ssl[module] = None
 
 
 def _error(e, module):
@@ -118,7 +121,7 @@ def _register_route(module, url='/', methods=('GET', 'POST', 'PUT', 'DELETE')):
 def _build_app(module):
     """Returns the app"""
 
-    global _url_map, _routes, _debug
+    global _url_map, _routes
 
     @responder
     def application(environ, _):
@@ -175,6 +178,21 @@ def file(path, name=None):
 
 def favicon(path):
     _register_route(_caller(), '/favicon.ico')(lambda: file(path))
+
+
+def ssl(host, path=None):
+    global _ssl
+    module = _caller()
+    if path:
+        _ssl[module] = make_ssl_devcert(path, host=host)
+    else:
+        import importlib
+        open_ssl = importlib.find_loader('OpenSSL')
+        if open_ssl:
+            _ssl[module] = 'adhoc'
+        else:
+            raise ModuleNotFoundError('SSL generation requires the PyOpenSSl module. Please install it or pass the path\
+             to your self generated certificate')
 
 
 def error(f):
@@ -262,6 +280,7 @@ def app():
 
 def run(host='127.0.0.1', port=5000, debug=False):
     """Runs the app"""
+    global _ssl
 
     module = _caller()
-    run_simple(host, port, _build_app(module), use_debugger=debug, use_reloader=debug)
+    run_simple(host, port, _build_app(module), use_debugger=debug, use_reloader=debug, ssl_context=_ssl[module])

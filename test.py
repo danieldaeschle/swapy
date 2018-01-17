@@ -1,7 +1,8 @@
-from sapy import on_get, run, include, use, on, error, file, redirect, on_post, favicon
+from sapy import on_get, run, include, use, on, error, file, redirect, on_post, favicon, ssl
 from sapy.middlewares import JsonMiddleware, JsonException, HtmlMiddleware
 import another
 
+# ssl('127.0.0.1')
 error(JsonException)
 favicon('favicon.png')
 include(another, '/v1')
