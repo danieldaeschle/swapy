@@ -20,7 +20,6 @@ _routes = {}
 _ssl_for = {}
 
 
-@property
 def _caller():
     """Returns the module which calls sapy"""
     return inspect.currentframe().f_back.f_back.f_globals['__name__']
@@ -99,6 +98,12 @@ def _register_route(module, url='/', methods=('GET', 'POST', 'PUT', 'DELETE')):
     if url == '/*':
         url = '/<path:path>'
 
+    # Check if rule already exists
+    for route in _url_map[module].iter_rules():
+        if route.rule == url:
+            raise Exception('Path "{}" already exists in "{}". Cannot add route to module "{}". '
+                            'Maybe you included routes with the same url?'.format(route.rule, module, module))
+
     def decorator(f):
         mws = _middlewares[module]
 
@@ -170,10 +175,16 @@ def _include(module, target, prefix=''):
     routes = _url_map[target.__name__]
     for route in routes.iter_rules():
         rule = '{}{}'.format(prefix, route.rule)
-        new_route = Rule(rule, endpoint=route.endpoint, methods=route.methods, strict_slashes=False)
-        _url_map[module].add(new_route)
+        for r in _url_map[module].iter_rules():
+            if rule == r.rule:
+                raise Exception('Path "{}" already exists in "{}". Module "{}" cannot be included in "{}".'
+                                .format(rule, module, target.__name__, module))
     for name in _routes[target.__name__].keys():
         _routes[module][name] = _routes[target.__name__][name]
+    for route in routes.iter_rules():
+        rule = '{}{}'.format(prefix, route.rule)
+        new_route = Rule(rule, endpoint=route.endpoint, methods=route.methods, strict_slashes=False)
+        _url_map[module].add(new_route)
 
 
 def _build_app(module):
@@ -235,53 +246,53 @@ def file(path, name=None):
 
 
 def favicon(path):
-    _favicon(_caller, path)
+    _favicon(_caller(), path)
 
 
 def ssl(host, path=None):
-    _ssl(_caller, host, path)
+    _ssl(_caller(), host, path)
 
 
 def error(f):
-    _error(_caller, f)
+    _error(_caller(), f)
 
 
 def not_found(f):
-    _not_found(_caller, f)
+    _not_found(_caller(), f)
 
 
 def on(url='/', methods=('GET', 'POST', 'PUT', 'DELETE')):
     """Route registerer for all http methods"""
-    return _register_route(_caller, url, methods)
+    return _register_route(_caller(), url, methods)
 
 
 def on_get(url='/'):
     """Route registerer for GET http method"""
-    return _register_route(_caller, url, methods=['GET'])
+    return _register_route(_caller(), url, methods=['GET'])
 
 
 def on_post(url='/'):
     """Route registerer for POST http method"""
-    return _register_route(_caller, url, methods=['POST'])
+    return _register_route(_caller(), url, methods=['POST'])
 
 
 def on_put(url='/'):
     """Route registerer for PUT http method"""
-    return _register_route(_caller, url, methods=['PUT'])
+    return _register_route(_caller(), url, methods=['PUT'])
 
 
 def on_delete(url='/'):
     """Route registerer for DELETE http method"""
-    return _register_route(_caller, url, methods=['DELETE'])
+    return _register_route(_caller(), url, methods=['DELETE'])
 
 
 def include(module, prefix=''):
     """Includes a module into another module"""
-    _include(_caller, module, prefix)
+    _include(_caller(), module, prefix)
 
 
 def config(cfg):
-    module = _caller
+    module = _caller()
     if isinstance(cfg, dict):
         if cfg.get('use'):
             middlewares_ = cfg['use']
@@ -320,17 +331,17 @@ def config(cfg):
 
 def use(*middlewares_):
     """Registers middlewares for global use"""
-    _use(_caller, *middlewares_)
+    _use(_caller(), *middlewares_)
 
 
 def app():
     """Returns the built app"""
-    return _build_app(_caller)
+    return _build_app(_caller())
 
 
 def run(host='127.0.0.1', port=5000, debug=False):
     """Runs the app"""
     global _ssl_for
 
-    module = _caller
+    module = _caller()
     run_simple(host, port, _build_app(module), use_debugger=debug, use_reloader=debug, ssl_context=_ssl_for[module])

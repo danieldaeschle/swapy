@@ -7,5 +7,6 @@ setup(
     author='Daniel Däschle',
     author_email='daniel.daeschle@gmail.com',
     url='https://github.com/danieldaeschle/sapy',
-    packages=['werkzeug']
+    packages=['sapy'],
+    install_requires=['werkzeug']
 )

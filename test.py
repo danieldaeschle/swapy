@@ -13,7 +13,7 @@ config({
     'error': JsonException,
     'use': JsonMiddleware,
     'favicon': 'favicon.png',
-    'include': (another, 'v1')
+    'include': another
 })
 
 
