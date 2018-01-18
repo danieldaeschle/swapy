@@ -1,19 +1,25 @@
-from sapy import on_get, run, include, use, on, error, file, redirect, on_post, favicon, ssl
+from sapy import on_get, run, include, use, on, error, file, redirect, on_post, favicon, ssl, config
 from sapy.middlewares import JsonMiddleware, JsonException, HtmlMiddleware
 import another
 import sqlite3
 conn = sqlite3.connect(':memory:', check_same_thread=False)
 
 # ssl('127.0.0.1')
-error(JsonException)
-use(JsonMiddleware)
-favicon('favicon.png')
-include(another, '/v1')
+# error(JsonException)
+# use(JsonMiddleware)
+# favicon('favicon.png')
+# include(another, prefix='/v1')
+config({
+    'error': JsonException,
+    'use': JsonMiddleware,
+    'favicon': 'favicon.png',
+    'include': (another, 'v1')
+})
 
 
 @on_get()
 def root():
-    return 'Hello Sapify! :)'
+    return 'Hello Sapify! :)', 200, {}
 
 
 @on_get('/create')
@@ -54,4 +60,4 @@ def json():
 #     return {'message': 'Endpoint \'{}\' doesn\'t exists'.format(req.path)}, 404
 
 if __name__ == '__main__':
-    run(debug=False)
+    run(debug=True)
