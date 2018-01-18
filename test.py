@@ -1,9 +1,12 @@
 from sapy import on_get, run, include, use, on, error, file, redirect, on_post, favicon, ssl
 from sapy.middlewares import JsonMiddleware, JsonException, HtmlMiddleware
 import another
+import sqlite3
+conn = sqlite3.connect(':memory:', check_same_thread=False)
 
 # ssl('127.0.0.1')
 error(JsonException)
+use(JsonMiddleware)
 favicon('favicon.png')
 include(another, '/v1')
 
@@ -13,9 +16,11 @@ def root():
     return 'Hello Sapify! :)'
 
 
-@on_post('/create')
+@on_get('/create')
 def create(req):
-    print(req.test)
+    print(req.form['test'])
+    c = conn.cursor()
+    c.execute("SELECT name FROM sqlite_master WHERE type='table';")
     return 'Test'
 
 

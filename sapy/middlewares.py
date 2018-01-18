@@ -1,5 +1,5 @@
 import json
-from werkzeug.exceptions import HTTPException
+from werkzeug.exceptions import HTTPException, abort
 
 
 def _json_exception(error):
@@ -15,7 +15,11 @@ def _exception_middleware(error):
 
 def _json_middleware(f):
     def handle(*args, **kwargs):
-        result = f(*args, **kwargs)  # Returns -> content[, status_code][, headers]
+        try:
+            result = f(*args, **kwargs)  # Returns -> content[, status_code][, headers]
+        except KeyError:
+            result = None
+            abort(400)
         code = 200
         headers = {}
         if type(result) == tuple:

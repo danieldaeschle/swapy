@@ -20,6 +20,7 @@ _routes = {}
 _ssl = {}
 
 
+@property
 def _caller():
     """Returns the module which calls sapy"""
 
@@ -177,16 +178,17 @@ def file(path, name=None):
 
 
 def favicon(path):
-    _register_route(_caller(), '/favicon.ico')(lambda: file(path))
+    _register_route(_caller, '/favicon.ico')(lambda: file(path))
 
 
 def ssl(host, path=None):
     global _ssl
-    module = _caller()
+    module = _caller
     if path:
         _ssl[module] = make_ssl_devcert(path, host=host)
     else:
         import importlib
+        # noinspection PyDeprecation
         open_ssl = importlib.find_loader('OpenSSL')
         if open_ssl:
             _ssl[module] = 'adhoc'
@@ -197,20 +199,20 @@ def ssl(host, path=None):
 
 def error(f):
     global _on_error
-    _init(_caller())
-    _on_error[_caller()] = f
+    _init(_caller)
+    _on_error[_caller] = f
 
 
 def not_found(f):
     global _on_not_found
-    _init(_caller())
-    _on_not_found[_caller()] = f
+    _init(_caller)
+    _on_not_found[_caller] = f
 
 
 def on(url='/', methods=('GET', 'POST', 'PUT', 'DELETE')):
     """Route registerer for all http methods"""
 
-    module = _caller()
+    module = _caller
     _init(module)
     return _register_route(module, url, methods)
 
@@ -218,7 +220,7 @@ def on(url='/', methods=('GET', 'POST', 'PUT', 'DELETE')):
 def on_get(url='/'):
     """Route registerer for GET http method"""
 
-    module = _caller()
+    module = _caller
     _init(module)
     return _register_route(module, url, methods=['GET'])
 
@@ -226,7 +228,7 @@ def on_get(url='/'):
 def on_post(url='/'):
     """Route registerer for POST http method"""
 
-    module = _caller()
+    module = _caller
     _init(module)
     return _register_route(module, url, methods=['POST'])
 
@@ -234,7 +236,7 @@ def on_post(url='/'):
 def on_put(url='/'):
     """Route registerer for PUT http method"""
 
-    module = _caller()
+    module = _caller
     _init(module)
     return _register_route(module, url, methods=['PUT'])
 
@@ -242,7 +244,7 @@ def on_put(url='/'):
 def on_delete(url='/'):
     """Route registerer for DELETE http method"""
 
-    module = _caller()
+    module = _caller
     _init(module)
     return _register_route(module, url, methods=['DELETE'])
 
@@ -251,7 +253,7 @@ def include(module, prefix=''):
     """Includes a module into another module"""
 
     global _url_map
-    _init(_caller())
+    _init(_caller)
     _init(module.__name__)
     if not prefix.startswith('/') and len(prefix) >= 1:
         prefix = '/{}'.format(prefix)
@@ -261,20 +263,20 @@ def include(module, prefix=''):
     for route in routes.iter_rules():
         rule = '{}{}'.format(prefix, route.rule)
         new_route = Rule(rule, endpoint=route.endpoint, methods=route.methods, strict_slashes=False)
-        _url_map[_caller()].add(new_route)
+        _url_map[_caller].add(new_route)
     for name in _routes[module.__name__].keys():
-        _routes[_caller()][name] = _routes[module.__name__][name]
+        _routes[_caller][name] = _routes[module.__name__][name]
 
 
 def use(middleware):
     """Registers middlewares for global use"""
 
-    _init(_caller())
-    _middlewares[_caller()].append(middleware)
+    _init(_caller)
+    _middlewares[_caller].append(middleware)
 
 
 def app():
-    module = _caller()
+    module = _caller
     return _build_app(module)
 
 
@@ -282,5 +284,5 @@ def run(host='127.0.0.1', port=5000, debug=False):
     """Runs the app"""
     global _ssl
 
-    module = _caller()
+    module = _caller
     run_simple(host, port, _build_app(module), use_debugger=debug, use_reloader=debug, ssl_context=_ssl[module])
