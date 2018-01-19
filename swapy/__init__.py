@@ -21,7 +21,7 @@ _ssl_for = {}
 
 
 def _caller():
-    """Returns the module which calls sapy"""
+    """Returns the module which calls swapy"""
     return inspect.currentframe().f_back.f_back.f_globals['__name__']
 
 
@@ -122,9 +122,9 @@ def _register_route(module, url='/', methods=('GET', 'POST', 'PUT', 'DELETE')):
                 return ''
 
         name = str(uuid.uuid4())
-        route = Rule(url, methods=methods, endpoint=name, strict_slashes=False)
-        _url_map[module].add(route)
-        _routes[module][name] = {'function': handle, 'on_error': _on_error[module]}
+        rule = Rule(url, methods=methods, endpoint=name, strict_slashes=False)
+        _url_map[module].add(rule)
+        _routes[module][name] = {'function': handle, 'on_error': _on_error[module], 'url': url}
         return f
 
     return decorator

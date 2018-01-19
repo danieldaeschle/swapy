@@ -1,4 +1,4 @@
-from sapy import on
+from swapy import on
 
 
 @on('/test')

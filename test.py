@@ -1,5 +1,5 @@
-from sapy import on_get, run, include, use, on, error, file, redirect, on_post, favicon, ssl, config
-from sapy.middlewares import JsonMiddleware, JsonException, HtmlMiddleware
+from swapy import on_get, run, include, use, on, error, file, redirect, on_post, favicon, ssl, config
+from swapy.middlewares import JsonMiddleware, JsonException, HtmlMiddleware
 import another
 import sqlite3
 conn = sqlite3.connect(':memory:', check_same_thread=False)
@@ -32,6 +32,7 @@ def create(req):
 
 @on_get('/redirect')
 def redirect():
+    """Redirects to Google"""
     return redirect('https://google.de')
 
 
