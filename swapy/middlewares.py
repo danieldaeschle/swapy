@@ -63,7 +63,7 @@ def _cors_middleware(f):
             headers['Access-Control-Allow-Origin'] = '*'
             headers['Access-Control-Allow-Headers'] = '*'
             headers['Access-Control-Allow-Credentials'] = 'true'
-            headers['Access-Control-Allow-Methods'] = 'GET, PUT, POST, DELETE'
+            headers['Access-Control-Allow-Methods'] = 'GET, PUT, POST, DELETE, HEAD, PATCH, OPTIONS'
             headers['Access-Control-Expose-Headers'] = '*'
             return body, code, headers
         return result
