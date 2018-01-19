@@ -19,7 +19,7 @@ config({
 
 @on_get()
 def root():
-    return 'Hello Sapify! :)', 200, {}
+    return 'Hello Swapy! :)', 200, {}
 
 
 @on_get('/create')
