@@ -1,5 +1,9 @@
-from swapy import on_get, run, include, use, on, error, file, redirect, on_post, favicon, ssl, config
-from swapy.middlewares import JsonMiddleware, JsonException, HtmlMiddleware
+import sys
+import os
+sys.path.append(os.path.abspath('../'))
+
+from swapy import on_get, run, file, redirect, config, app, on_post
+from swapy.middlewares import JsonMiddleware, JsonException
 import another
 import sqlite3
 conn = sqlite3.connect(':memory:', check_same_thread=False)
@@ -22,12 +26,16 @@ def root():
     return 'Hello Swapy! :)', 200, {}
 
 
-@on_get('/create')
+@on_post('/create')
 def create(req):
-    print(req.form['test'])
+    return req.form['test']
+
+
+@on_get('db')
+def database():
     c = conn.cursor()
     c.execute("SELECT name FROM sqlite_master WHERE type='table';")
-    return 'Test'
+    return True
 
 
 @on_get('/redirect')
@@ -38,7 +46,7 @@ def redirect():
 
 @on_get('/file')
 def file():
-    return file('test.py')
+    return file('app.py')
 
 
 @on_get('/error')
@@ -62,3 +70,5 @@ def json():
 
 if __name__ == '__main__':
     run(debug=True)
+
+application = app()

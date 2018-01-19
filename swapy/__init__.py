@@ -339,9 +339,9 @@ def app():
     return _build_app(_caller())
 
 
-def run(host='127.0.0.1', port=5000, debug=False):
+def run(host='127.0.0.1', port=5000, debug=False, module_name=None):
     """Runs the app"""
     global _ssl_for
 
-    module = _caller()
+    module = module_name if module_name else _caller()
     run_simple(host, port, _build_app(module), use_debugger=debug, use_reloader=debug, ssl_context=_ssl_for[module])
