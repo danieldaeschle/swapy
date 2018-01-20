@@ -15,11 +15,7 @@ def _exception_middleware(error):
 
 def _json_middleware(f):
     def handle(*args, **kwargs):
-        try:
-            result = f(*args, **kwargs)  # Returns -> content[, status_code][, headers]
-        except KeyError:
-            result = None
-            abort(400)
+        result = f(*args, **kwargs)  # Returns -> content[, status_code][, headers]
         code = 200
         headers = {}
         if type(result) == tuple:
@@ -70,6 +66,17 @@ def _cors_middleware(f):
     return handle
 
 
+def _expect_keys_middleware(f):
+    def handle(*args, **kwargs):
+        try:
+            res = f(*args, **kwargs)
+        except KeyError:
+            res = None
+            abort(400)
+        return res
+    return handle
+
+
 JsonException = _json_exception
 JsonMiddleware = _json_middleware
 
@@ -77,3 +84,4 @@ HtmlMiddleware = _html_middleware
 ExceptionMiddleware = _exception_middleware
 
 CorsMiddleware = _cors_middleware
+ExpectKeysMiddleware = _expect_keys_middleware

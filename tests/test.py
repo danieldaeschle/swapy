@@ -2,49 +2,59 @@ import sys
 import os
 sys.path.append(os.path.abspath('../'))
 
+# noinspection PyUnresolvedReferences
 import app
 from swapy.test import run_test, url
 import requests
-import os
+import unittest
 
 run_test(app.application)
 
 
-def test_working():
-    r = requests.get(url)
-    assert r.content.decode() == '"Hello Swapy! :)"'
+class TestWorking(unittest.TestCase):
+
+    def test_content(self):
+        r = requests.get(url)
+        assert r.content.decode() == 'Hello Swapy! :)'
+
+    def test_code(self):
+        r = requests.get(url)
+        self.assertEqual(r.status_code, 200)
 
 
-def test_code():
-    r = requests.get(url)
-    assert r.status_code == 200
+class TestExceptKeyMiddleware(unittest.TestCase):
+
+    def test_form_keys_error(self):
+        r = requests.post(url + 'create')
+        self.assertEqual(r.status_code, 400)
+
+    def test_form_code(self):
+        r = requests.post(url + 'create', data={'test': 'something'})
+        self.assertEqual(r.status_code, 200)
+
+    def test_content(self):
+        r = requests.post(url + 'create', data={'test': 'something'})
+        self.assertEqual(r.content.decode(), 'something')
 
 
-def test_db():
-    r = requests.get(url + 'db')
-    assert r.content.decode() == 'true'
+class TestJsonMiddleware(unittest.TestCase):
+
+    def test_json(self):
+        r = requests.get(url + 'json')
+        self.assertEqual(r.json()['message'], 'hi')
+
+    def test_header(self):
+        r = requests.get(url + 'json')
+        self.assertEqual(r.headers['Content-Type'], 'application/json')
 
 
-def test_form_keys_error():
-    r = requests.post(url + 'create')
-    assert r.status_code == 400
+class TestDatabaseWorking(unittest.TestCase):
 
-
-def test_form_keys():
-    r = requests.post(url + 'create', data={'test': 'something'})
-    assert r.status_code == 200 and r.content.decode() == '"something"'
-
-
-def test_json():
-    r = requests.get(url + 'json')
-    assert r.json()['message'] == 'hi' and r.headers['Content-Type'] == 'application/json'
+    def test_sqlite(self):
+        r = requests.get(url + 'db')
+        self.assertEqual(r.content.decode(), 'true')
 
 
 if __name__ == '__main__':
-    test_working()
-    test_code()
-    test_db()
-    test_form_keys_error()
-    test_form_keys()
-    test_json()
+    unittest.main()
 

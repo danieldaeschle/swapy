@@ -2,8 +2,8 @@ import sys
 import os
 sys.path.append(os.path.abspath('../'))
 
-from swapy import on_get, run, file, redirect, config, app, on_post
-from swapy.middlewares import JsonMiddleware, JsonException
+from swapy import on_get, run, file, redirect, config, app, on_post, use
+from swapy.middlewares import JsonMiddleware, JsonException, ExpectKeysMiddleware
 import another
 import sqlite3
 conn = sqlite3.connect(':memory:', check_same_thread=False)
@@ -15,7 +15,6 @@ conn = sqlite3.connect(':memory:', check_same_thread=False)
 # include(another, prefix='/v1')
 config({
     'error': JsonException,
-    'use': JsonMiddleware,
     'favicon': 'favicon.png',
     'include': another
 })
@@ -27,6 +26,7 @@ def root():
 
 
 @on_post('/create')
+@ExpectKeysMiddleware
 def create(req):
     return req.form['test']
 
@@ -35,7 +35,7 @@ def create(req):
 def database():
     c = conn.cursor()
     c.execute("SELECT name FROM sqlite_master WHERE type='table';")
-    return True
+    return 'true'
 
 
 @on_get('/redirect')
@@ -60,6 +60,7 @@ def error():
 
 
 @on_get('json')
+@JsonMiddleware
 def json():
     return {'message': 'hi'}
 
