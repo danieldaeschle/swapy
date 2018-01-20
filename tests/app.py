@@ -3,7 +3,7 @@ import os
 sys.path.append(os.path.abspath('../'))
 
 from swapy import on_get, run, file, redirect, config, app, on_post, use
-from swapy.middlewares import JsonMiddleware, JsonException, ExpectKeysMiddleware
+from swapy.middlewares import JsonMiddleware, JsonException, ExpectKeysMiddleware, HtmlMiddleware
 import another
 import sqlite3
 conn = sqlite3.connect(':memory:', check_same_thread=False)
@@ -45,7 +45,7 @@ def redirect():
 
 
 @on_get('/file')
-def file():
+def app_file():
     return file('app.py')
 
 
@@ -63,6 +63,12 @@ def error():
 @JsonMiddleware
 def json():
     return {'message': 'hi'}
+
+
+@on_get('html')
+@HtmlMiddleware
+def html():
+    return 'Hello World!'
 
 
 # @on('/*')
