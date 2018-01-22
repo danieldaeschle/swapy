@@ -22,13 +22,16 @@ class TestWorking(unittest.TestCase):
         self.assertEqual(r.status_code, 200)
 
     def test_post(self):
-        pass
+        r = requests.get(url)
+        self.assertEqual(r.status_code, 200)
 
     def test_put(self):
-        pass
+        r = requests.get(url)
+        self.assertEqual(r.status_code, 200)
 
     def test_delete(self):
-        pass
+        r = requests.get(url)
+        self.assertEqual(r.status_code, 200)
 
 
 class TestExceptKeyMiddleware(unittest.TestCase):

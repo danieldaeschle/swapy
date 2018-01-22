@@ -2,7 +2,9 @@ import sys
 import os
 sys.path.append(os.path.abspath('../'))
 
+# noinspection PyUnresolvedReferences
 from swapy import on_get, run, file, redirect, config, app, on_post, use
+# noinspection PyUnresolvedReferences
 from swapy.middlewares import JsonMiddleware, JsonException, ExpectKeysMiddleware, HtmlMiddleware
 import another
 import sqlite3
