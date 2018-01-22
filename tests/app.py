@@ -2,7 +2,9 @@ import sys
 import os
 sys.path.append(os.path.abspath('../'))
 
-from swapy import on_get, run, file, redirect, config, app, on_post, use
+# noinspection PyUnresolvedReferences
+from swapy import on_get, run, file, redirect, config, app, on_post, on_put, on_delete
+# noinspection PyUnresolvedReferences
 from swapy.middlewares import JsonMiddleware, JsonException, ExpectKeysMiddleware, HtmlMiddleware
 import another
 import sqlite3
@@ -23,6 +25,13 @@ config({
 @on_get()
 def root():
     return 'Hello Swapy! :)', 200, {}
+
+
+@on_put()
+@ExpectKeysMiddleware
+def put(req):
+    name = req.json['name']
+    return name
 
 
 @on_post('/create')

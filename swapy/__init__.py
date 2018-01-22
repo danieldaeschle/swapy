@@ -1,6 +1,7 @@
 import inspect
+import json
 import uuid
-from werkzeug.wrappers import Request, Response
+from werkzeug.wrappers import Request as WRequest, Response
 from werkzeug.exceptions import HTTPException, NotFound
 from werkzeug.serving import run_simple, make_ssl_devcert
 from werkzeug.routing import Rule, Map
@@ -100,7 +101,7 @@ def _register_route(module, url='/', methods=('GET', 'POST', 'PUT', 'DELETE')):
 
     # Check if rule already exists
     for route in _url_map[module].iter_rules():
-        if route.rule == url:
+        if route.rule == url and [method for method in route.methods if method in methods]:
             raise Exception('Path "{}" already exists in "{}". Cannot add route to module "{}". '
                             'Maybe you included routes with the same url?'.format(route.rule, module, module))
 
@@ -210,9 +211,9 @@ def _build_app(module):
                 # Checks if the type is iterable to prevent more errors
                 iter(res)
 
-                if type(res) == tuple or type(res[0]) == FileWrapper:
+                if isinstance(res, tuple) or isinstance(res, tuple) and isinstance(res[0], FileWrapper):
                     return Response(*res, direct_passthrough=True)
-                elif type(res) == FileWrapper:
+                elif isinstance(res, FileWrapper):
                     return Response(res, direct_passthrough=True)
                 else:
                     return Response(res)
@@ -345,3 +346,13 @@ def run(host='127.0.0.1', port=5000, debug=False, module_name=None):
 
     module = module_name if module_name else _caller()
     run_simple(host, port, _build_app(module), use_debugger=debug, use_reloader=debug, ssl_context=_ssl_for[module])
+
+
+class Request(WRequest):
+    @property
+    def json(self):
+        try:
+            content = json.loads(self.data.decode())
+        except json.JSONDecodeError:
+            content = {}
+        return content

@@ -3,10 +3,10 @@ import os
 sys.path.append(os.path.abspath('../'))
 
 # noinspection PyUnresolvedReferences
-import app
 from swapy.test import run_test, url
 import requests
 import unittest
+import app
 
 run_test(app.application)
 
@@ -25,7 +25,8 @@ class TestWorking(unittest.TestCase):
         pass
 
     def test_put(self):
-        pass
+        r = requests.put(url, json={'name': 'Daniel'})
+        self.assertEqual(r.content.decode(), 'Daniel')
 
     def test_delete(self):
         pass
@@ -71,21 +72,12 @@ class TestHtmlMiddleware(unittest.TestCase):
         self.assertEqual(r.headers['Content-Type'], 'text/html')
 
 
-class TestFiles(unittest.TestCase):
+class TestFile(unittest.TestCase):
 
     def test_app_file(self):
         r = requests.get(url + 'file')
         self.assertEqual(r.headers['Content-Disposition'], 'attachment;filename=app.py')
 
 
-class TestErrors(unittest.TestCase):
-    pass
-
-
-class TestRedirect(unittest.TestCase):
-    pass
-
-
 if __name__ == '__main__':
     unittest.main()
-
