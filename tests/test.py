@@ -80,6 +80,11 @@ class TestFile(unittest.TestCase):
         r = requests.get(url + 'file')
         self.assertEqual(r.headers['Content-Disposition'], 'attachment;filename=app.py')
 
+    def test_app_shared_file(self):
+        r = requests.get(url + 'shared/myFile.png')
+        print(r)
+        self.assertEqual(r.headers['Content-Disposition'], 'attachment;filename=myFile.png')
+
 
 if __name__ == '__main__':
     unittest.main()

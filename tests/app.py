@@ -13,12 +13,13 @@ conn = sqlite3.connect(':memory:', check_same_thread=False)
 # ssl('127.0.0.1')
 # error(JsonException)
 # use(JsonMiddleware)
-# favicon('favicon.png')
+# favicon('myFile.png')
 # include(another, prefix='/v1')
 config({
     'error': JsonException,
-    'favicon': 'favicon.png',
-    'include': another
+    'favicon': 'myFile.png',
+    'include': another,
+    'shared': True
 })
 
 
