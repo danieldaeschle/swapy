@@ -1,4 +1,5 @@
 [![Build Status](https://travis-ci.org/danieldaeschle/swapy.svg?branch=master)](https://travis-ci.org/danieldaeschle/swapy)
+[![PyPi Version](https://img.shields.io/pypi/v/swapy.svg)](https://pypi.python.org/pypi/swapy)
 
 ![Logo](https://raw.githubusercontent.com/danieldaeschle/swapy/master/logo.png)
 
