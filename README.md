@@ -8,6 +8,10 @@ The name *swapy* is a blend of `server`, `web`, `api` and `python`.
 
 #### Work in progress...
 
+# Getting Started
+
+Please read our [wiki](https://github.com/danieldaeschle/swapy/wiki) page.
+
 # LICENSE
 
 MIT License
