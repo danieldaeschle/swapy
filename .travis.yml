@@ -1,5 +1,5 @@
 language: python
 rvm:
   - "3.6"
-install: pip install --user -r test_requirements.txt
+install: pip install -r test_requirements.txt
 script: pytest
