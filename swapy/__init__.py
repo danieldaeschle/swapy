@@ -5,7 +5,7 @@ from werkzeug.wrappers import Request as WRequest, Response
 from werkzeug.exceptions import HTTPException, NotFound
 from werkzeug.serving import run_simple, make_ssl_devcert
 from werkzeug.routing import Rule, Map
-from werkzeug.wsgi import responder, FileWrapper
+from werkzeug.wsgi import responder, FileWrapper, SharedDataMiddleware
 from werkzeug.urls import iri_to_uri
 from werkzeug.utils import escape
 from .middlewares import ExceptionMiddleware
@@ -19,6 +19,7 @@ _on_error = {}
 _on_not_found = {}
 _routes = {}
 _ssl_for = {}
+_shared_dir = {}
 
 
 def _caller():
@@ -26,9 +27,13 @@ def _caller():
     return inspect.currentframe().f_back.f_back.f_globals['__name__']
 
 
+def _caller_module():
+    return inspect.currentframe().f_back.f_back
+
+
 def _init(module):
     """Adds every module which is calling first time to routes and middlewares"""
-    global _url_map, _middlewares, _on_error, _on_not_found, _ssl_for
+    global _url_map, _middlewares, _on_error, _on_not_found, _ssl_for, _shared_dir
 
     if module not in _url_map:
         _url_map[module] = Map([])
@@ -42,6 +47,8 @@ def _init(module):
         _on_not_found[module] = ExceptionMiddleware
     if module not in _ssl_for:
         _ssl_for[module] = None
+    if module not in _shared_dir:
+        _shared_dir[module] = None
 
 
 def _error_handler(e, module):
@@ -72,6 +79,13 @@ def _not_found_handler(e, module):
             return Response(res)
     except TypeError:
         return e
+
+
+def _shared(module, directory):
+    global _shared_dir
+    if directory is True:
+        directory = 'shared'
+    _shared_dir[module] = directory
 
 
 def _find_route(name):
@@ -191,7 +205,7 @@ def _include(module, target, prefix=''):
 def _build_app(module):
     """Returns the app"""
 
-    global _url_map, _routes
+    global _url_map, _routes, _shared_dir
 
     @responder
     def application(environ, _):
@@ -222,6 +236,11 @@ def _build_app(module):
             except HTTPException as ex:
                 return _error_handler(ex, module)
         return urls.dispatch(dispatch)
+    if _shared_dir[module]:
+        print(os.path.join(os.path.dirname(__file__), _shared_dir[module]))
+        return SharedDataMiddleware(application, {
+            '/shared': _shared_dir[module]
+        })
     return application
 
 
@@ -256,6 +275,11 @@ def ssl(host, path=None):
 
 def error(f):
     _error(_caller(), f)
+
+
+def shared(directory):
+    module = _caller_module()
+    _shared(module, os.path.join(os.path.dirname(module.__file__), directory))
 
 
 def not_found(f):
@@ -326,6 +350,8 @@ def config(cfg):
             _favicon(module, cfg['favicon'])
         if cfg.get('not_found'):
             _not_found(module, cfg['not_found'])
+        if cfg.get('shared'):
+            _shared(_caller_module(), cfg['shared'])
     else:
         raise TypeError('Type {} is not supported as config. Please use a dict.'.format(type(cfg)))
 
