@@ -8,5 +8,6 @@ setup(
     author_email='daniel.daeschle@gmail.com',
     url='https://github.com/danieldaeschle/swapy',
     packages=['swapy'],
-    install_requires=['werkzeug']
+    install_requires=['werkzeug'],
+    license='MIT'
 )
