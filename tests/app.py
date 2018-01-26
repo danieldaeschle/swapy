@@ -17,7 +17,7 @@ conn = sqlite3.connect(':memory:', check_same_thread=False)
 # include(another, prefix='/v1')
 config({
     'error': JsonException,
-    'favicon': 'myFile.png',
+    'favicon': 'favicon.png',
     'include': another,
     'shared': True
 })
@@ -54,9 +54,9 @@ def redirect():
     return redirect('https://google.de')
 
 
-@on_get('/file')
+@on_get('/app-file')
 def app_file():
-    return file('app.py')
+    return file('test/app.py')
 
 
 @on_get('/error')

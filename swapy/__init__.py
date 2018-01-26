@@ -27,7 +27,7 @@ def _caller():
     return inspect.currentframe().f_back.f_back.f_globals['__name__']
 
 
-def _caller_module():
+def _caller_frame():
     return inspect.currentframe().f_back.f_back
 
 
@@ -81,11 +81,14 @@ def _not_found_handler(e, module):
         return e
 
 
-def _shared(module, directory):
+def _shared(frame, directory):
     global _shared_dir
+    module_name = frame.f_globals['__name__']
     if directory is True:
         directory = 'shared'
-    _shared_dir[module] = directory
+    directory = os.path.join(os.path.dirname(frame.f_globals['__file__']), directory)
+    directory = directory.replace('\\', '/')
+    _shared_dir[module_name] = directory
 
 
 def _find_route(name):
@@ -169,7 +172,10 @@ def _ssl(module, host, path=None):
 
 
 def _favicon(module, path):
-    _register_route(module, '/favicon.ico')(lambda: file(path))
+    def handle():
+        with open(path, 'rb') as f:
+            return f.read()
+    _register_route(module, '/favicon.ico')(handle)
 
 
 def _not_found(module, f):
@@ -219,7 +225,7 @@ def _build_app(module):
                 f = _routes[module][endpoint]['function']
                 try:
                     res = f(req=req)
-                except KeyError:
+                except TypeError:
                     res = f()
 
                 # Checks if the type is iterable to prevent more errors
@@ -237,7 +243,6 @@ def _build_app(module):
                 return _error_handler(ex, module)
         return urls.dispatch(dispatch)
     if _shared_dir[module]:
-        print(os.path.join(os.path.dirname(__file__), _shared_dir[module]))
         return SharedDataMiddleware(application, {
             '/shared': _shared_dir[module]
         })
@@ -255,6 +260,8 @@ def redirect(location, code=301):
 
 
 def file(path, name=None):
+    if not os.path.isabs(path):
+        path = os.path.abspath(_caller_frame().f_globals['__file__'])
     f = open(path, 'rb')
     if file:
         mime = mimetypes.guess_type(path)[0]
@@ -278,8 +285,8 @@ def error(f):
 
 
 def shared(directory):
-    module = _caller_module()
-    _shared(module, os.path.join(os.path.dirname(module.__file__), directory))
+    module = _caller_frame()
+    _shared(module, directory)
 
 
 def not_found(f):
@@ -351,7 +358,7 @@ def config(cfg):
         if cfg.get('not_found'):
             _not_found(module, cfg['not_found'])
         if cfg.get('shared'):
-            _shared(_caller_module(), cfg['shared'])
+            _shared(_caller_frame(), cfg['shared'])
     else:
         raise TypeError('Type {} is not supported as config. Please use a dict.'.format(type(cfg)))
 
