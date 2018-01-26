@@ -1,3 +1,5 @@
+[![Build Status](https://travis-ci.org/danieldaeschle/swapy.svg?branch=master)](https://travis-ci.org/danieldaeschle/swapy)
+
 ![Logo](https://raw.githubusercontent.com/danieldaeschle/swapy/master/logo.png)
 
 Web framework made for APIs on top of [werkzeug](http://werkzeug.pocoo.org/).
