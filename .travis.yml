@@ -3,3 +3,5 @@ rvm:
   - "3.6"
 install: pip install -r test_requirements.txt
 script: pytest
+notifications:
+  email: false
