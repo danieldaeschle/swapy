@@ -2,18 +2,46 @@ import json
 from werkzeug.exceptions import HTTPException, abort
 
 
-def _json_exception(error):
+def json_exception(error):
+    """
+    Exception middleware which returns the error as JSOn string
+    -> {"message": error, "status_code": code}
+    
+    :param error: Exception
+        The Exception object
+    :return: str
+    """
     if isinstance(error, HTTPException):
         return json.dumps({'message': str(error), 'status_code': error.code}, indent=4), error.code
     else:
         return json.dumps({'message': str(error), 'status_code': 500}, indent=4), 500
 
 
-def _exception_middleware(error):
+def exception_middleware(error):
+    """
+    Default exception middleware
+    
+    :param error: Exception
+        The Exception object
+    :return: Exception
+        Will be converted to a string from the server
+    """
     return error
 
 
-def _json_middleware(f):
+def json_middleware(f):
+    """
+    Returns every output from an route which has the JSON middleware to a JSON string
+    Use it with:
+        @json_middleware
+        ...
+    Or:
+        use(json_middleware)
+    
+    :param f: callable
+        The route
+    :return: callable
+    """
     def handle(*args, **kwargs):
         result = f(*args, **kwargs)  # Returns -> content[, status_code][, headers]
         code = 200
@@ -32,7 +60,13 @@ def _json_middleware(f):
     return handle
 
 
-def _html_middleware(f):
+def html_middleware(f):
+    """
+    Appends a 'text/html' Content-Type header to each response from a route
+
+    :param f: callable
+    :return: callable
+    """
     def handle(*args, **kwargs):
         result = f(*args, **kwargs)
         if isinstance(result, tuple):
@@ -45,7 +79,13 @@ def _html_middleware(f):
     return handle
 
 
-def _cors_middleware(f):
+def cors_middleware(f):
+    """
+    Appends CORS headers to each response from a route
+
+    :param f: callable
+    :return: callable
+    """
     def handle(*args, **kwargs):
         req = kwargs['req']
         result = f(*args, **kwargs)
@@ -66,7 +106,13 @@ def _cors_middleware(f):
     return handle
 
 
-def _expect_keys_middleware(f):
+def expect_keys_middleware(f):
+    """
+    Returns a 400 error to the client if the route function tries to get a key from an object and cause a KeyError
+
+    :param f: callable
+    :return: callable
+    """
     def handle(*args, **kwargs):
         try:
             res = f(*args, **kwargs)
@@ -77,11 +123,9 @@ def _expect_keys_middleware(f):
     return handle
 
 
-JsonException = _json_exception
-JsonMiddleware = _json_middleware
-
-HtmlMiddleware = _html_middleware
-ExceptionMiddleware = _exception_middleware
-
-CorsMiddleware = _cors_middleware
-ExpectKeysMiddleware = _expect_keys_middleware
+JsonException = json_exception
+JsonMiddleware = json_middleware
+HtmlMiddleware = html_middleware
+ExceptionMiddleware = exception_middleware
+CorsMiddleware = cors_middleware
+ExpectKeysMiddleware = expect_keys_middleware
