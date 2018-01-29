@@ -2,7 +2,7 @@ from setuptools import setup
 
 setup(
     name='swapy',
-    version='0.1',
+    version='alpha-0.2',
     description='Easy and modular web development',
     author='Daniel Däschle',
     author_email='daniel.daeschle@gmail.com',
