@@ -3,7 +3,7 @@ import os
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)) + '/../')
 
 # noinspection PyUnresolvedReferences
-from swapy.test import client
+from swapy.testing import client
 import unittest
 import app
 import json
@@ -79,11 +79,15 @@ class TestDatabaseWorking(unittest.TestCase):
         self.assertEqual(r.data, b'true')
 
 
-class TestHtmlMiddleware(unittest.TestCase):
+class TestHtml(unittest.TestCase):
 
     def test_header(self):
         r = c.get('html')
         self.assertEqual(r.headers['Content-Type'], 'text/html')
+
+    def test_render(self):
+        r = c.get('html')
+        self.assertIn(b'Hello swapy!', r.data)
 
 
 if __name__ == '__main__':

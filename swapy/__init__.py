@@ -1,6 +1,9 @@
 import inspect
 import json
 import uuid
+import os
+import mimetypes
+
 from werkzeug.wrappers import Request as WRequest, Response
 from werkzeug.exceptions import HTTPException, NotFound
 from werkzeug.serving import run_simple, make_ssl_devcert
@@ -8,9 +11,11 @@ from werkzeug.routing import Rule, Map
 from werkzeug.wsgi import responder, FileWrapper, SharedDataMiddleware
 from werkzeug.urls import iri_to_uri
 from werkzeug.utils import escape
+
+from jinja2 import FileSystemLoader
+from jinja2.environment import Environment
+
 from .middlewares import ExceptionMiddleware
-import os
-import mimetypes
 
 
 _url_map = {}
@@ -368,6 +373,25 @@ def _build_app(module):
             '/shared': _shared_dir[module]
         })
     return application
+
+
+def render(file_path, **kwargs):
+    """
+    Returns a rendered HTML file
+
+    :param file_path: str
+        Path to file including filename and extension
+    :param kwargs: object
+        Additional arguments which will forward to the template
+    :return: str
+        Rendered HTML file
+    """
+    module = _caller_frame()
+    path = os.path.dirname(os.path.realpath(module.f_globals['__file__']))
+    env = Environment()
+    env.loader = FileSystemLoader(path)
+    template = env.get_template(file_path)
+    return template.render(kwargs)
 
 
 def redirect(location, code=301):

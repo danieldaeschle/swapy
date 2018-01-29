@@ -3,7 +3,7 @@ import os
 sys.path.append(os.path.abspath('../'))
 
 # noinspection PyUnresolvedReferences
-from swapy import on_get, run, file, redirect, config, app, on_post, on_put, on_delete
+from swapy import on_get, run, file, redirect, config, app, on_post, on_put, on_delete, render
 # noinspection PyUnresolvedReferences
 from swapy.middlewares import JsonMiddleware, JsonException, ExpectKeysMiddleware, HtmlMiddleware
 import another
@@ -78,7 +78,7 @@ def json():
 @on_get('html')
 @HtmlMiddleware
 def html():
-    return 'Hello World!'
+    return render('shared/index.html', text='Hello swapy!')
 
 
 # @on('/*')
