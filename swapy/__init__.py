@@ -17,13 +17,6 @@ from jinja2.environment import Environment
 
 from .middlewares import ExceptionMiddleware
 
-# _url_map = {}
-# _middlewares = {}
-# _on_error = {}
-# _on_not_found = {}
-# _routes = {}
-# _ssl_for = {}
-# _shared_dir = {}
 _modules = {}
 
 
