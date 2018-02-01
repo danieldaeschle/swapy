@@ -464,6 +464,16 @@ def file(path, name=None):
     raise FileNotFoundError()
 
 
+def favicon(path):
+    """
+    Registers a route to the favicon
+
+    :param path: str
+        Path to the file
+    """
+    _favicon(_caller(), path)
+
+
 def environment(data):
     """
     Sets the given data as environment
@@ -527,16 +537,6 @@ def set_env(key, value, status=None):
         state.environment[status][key] = value
     else:
         raise AttributeError('Parameter "status" must be None, "production" or "development"')
-
-
-def favicon(path):
-    """
-    Registers a route to the favicon
-
-    :param path: str
-        Path to the file
-    """
-    _favicon(_caller(), path)
 
 
 def ssl(host='127.0.0.1', path=None):
