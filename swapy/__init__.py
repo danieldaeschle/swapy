@@ -739,6 +739,7 @@ def run(host='127.0.0.1', port=5000, debug=False, module_name=None):
         Starts the app from the specific module if given
     """
     state = _state(_caller())
+    state.debug = debug
     module = module_name if module_name else _caller()
     run_simple(host, port, _build_app(module), use_debugger=debug, use_reloader=debug, ssl_context=state.ssl)
 
