@@ -312,6 +312,18 @@ def _include(module, target, prefix=''):
         state.url_map.add(new_route)
 
 
+def _environment(module, data):
+    """
+    Sets the environment data to the given module
+
+    :param module: str
+        The name of the module
+    :param data: dict
+    """
+    state = _state(module)
+    state.environment = data
+
+
 def _build_app(module):
     """
     Returns the built app
@@ -368,7 +380,8 @@ class _State:
     """
     State class for every module
     """
-    __slots__ = ['url_map', 'middlewares', 'on_error', 'on_not_found', 'routes', 'ssl', 'shared', 'environment']
+    __slots__ = ['url_map', 'middlewares', 'on_error', 'on_not_found',
+                 'routes', 'ssl', 'shared', 'environment', 'debug']
 
     def __init__(self):
         self.url_map = Map([])
@@ -378,6 +391,8 @@ class _State:
         self.routes = {}
         self.ssl = None
         self.shared = None
+        self.environment = {}
+        self.debug = False
 
 
 def render(file_path, **kwargs):
@@ -447,6 +462,71 @@ def file(path, name=None):
                    'Content-Length': size}
         return FileWrapper(f, 8192), 200, headers
     raise FileNotFoundError()
+
+
+def environment(data):
+    """
+    Sets the given data as environment
+
+    The keys "production" and "development" are reserved.
+    All keys in "production" are used if the app runs without the debug=True.
+    I the other case "development" is used.
+
+    Example:
+        'production': {
+            'host': '0.0.0.0'
+        },
+        'development': {
+            'host': '127.0.0.1'
+        }
+
+        If the app starts without debug mode the "host" key with the value "0.0.0.0" is the priority value.
+
+    :param data: dict
+    """
+    module = _caller()
+    _environment(module, data)
+
+
+def get_env(key):
+    """
+    Returns the value of the give key in environment variables
+
+    :param key: str
+    :return: any
+    """
+    state = _state(_caller())
+    if 'production' in state.environment and 'development' in state.environment:
+        if state.debug:
+            return state.environment['development'].get(key)
+        else:
+            return state.environment['production'].get(key)
+    else:
+        return state.environment.get(key)
+
+
+def set_env(key, value, status=None):
+    """
+    Sets a value for a key in the global environment
+
+    :param key: str
+    :param value: any
+    :param status: str
+        It is None, "development" or "production"
+    """
+    state = _state(_caller())
+    if status is None:
+        state.environment[key] = value
+    elif status == 'development':
+        if 'development' not in state.environment:
+            state.environment[status] = {}
+        state.environment[status][key] = value
+    elif status == 'production':
+        if 'production' not in state.environment:
+            state.environment[status] = {}
+        state.environment[status][key] = value
+    else:
+        raise AttributeError('Parameter "status" must be None, "production" or "development"')
 
 
 def favicon(path):
@@ -620,6 +700,8 @@ def config(cfg):
             _not_found(module, cfg['not_found'])
         if cfg.get('shared'):
             _shared(_caller_frame(), cfg['shared'])
+        if cfg.get('environment'):
+            _environment(module, cfg['environment'])
     else:
         raise TypeError('Type {} is not supported as config. Please use a dict.'.format(type(cfg)))
 
