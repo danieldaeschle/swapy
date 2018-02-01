@@ -17,7 +17,6 @@ conn = sqlite3.connect(':memory:', check_same_thread=False)
 # include(another, prefix='/v1')
 config({
     'error': JsonException,
-    'favicon': 'favicon.png',
     'include': another,
     'shared': True
 })

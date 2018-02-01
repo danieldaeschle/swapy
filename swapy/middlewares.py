@@ -26,7 +26,10 @@ def exception_middleware(error):
     :return: Exception
         Will be converted to a string from the server
     """
-    return error
+    if isinstance(error, HTTPException):
+        return str(error), error.code
+    else:
+        return str(error), 500
 
 
 def json_middleware(f):

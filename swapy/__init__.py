@@ -17,7 +17,6 @@ from jinja2.environment import Environment
 
 from .middlewares import ExceptionMiddleware
 
-
 _url_map = {}
 _middlewares = {}
 _on_error = {}
@@ -214,11 +213,13 @@ def _register_route(module, url='/', methods=('GET', 'POST', 'PUT', 'DELETE')):
                 return res
             else:
                 return ''
+
         name = str(uuid.uuid4())
         rule = Rule(url, methods=methods, endpoint=name, strict_slashes=False)
         _url_map[module].add(rule)
         _routes[module][name] = {'function': handle, 'on_error': _on_error[module], 'url': url}
         return f
+
     return decorator
 
 
@@ -274,9 +275,11 @@ def _favicon(module, path):
     :param path: str
         Path to favicon file
     """
+
     def handle():
         with open(path, 'rb') as f:
             return f.read()
+
     _register_route(module, '/favicon.ico')(handle)
 
 
@@ -367,7 +370,12 @@ def _build_app(module):
                 return _not_found_handler(ex, module)
             except HTTPException as ex:
                 return _error_handler(ex, module)
-        return urls.dispatch(dispatch)
+        try:
+            result = urls.dispatch(dispatch)
+        except NotFound as e:
+            result = _not_found_handler(e, module)
+        return result
+
     if _shared_dir[module]:
         return SharedDataMiddleware(application, {
             '/shared': _shared_dir[module]
@@ -410,11 +418,11 @@ def redirect(location, code=301):
         Redirect response
     """
     location = iri_to_uri(location, safe_conversion=True)
-    response = '<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2 Final//EN">\n'\
-        '<title>Redirecting...</title>\n'\
-        '<h1>Redirecting...</h1>\n'\
-        '<p>You should be redirected automatically to target URL: '\
-        '<a href="{}">{}</a>.  If not click the link.'.format(escape(location), escape(location))
+    response = '<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2 Final//EN">\n' \
+               '<title>Redirecting...</title>\n' \
+               '<h1>Redirecting...</h1>\n' \
+               '<p>You should be redirected automatically to target URL: ' \
+               '<a href="{}">{}</a>.  If not click the link.'.format(escape(location), escape(location))
     return response, code, {'Location': location, 'Content-Type': 'text/html'}
 
 
@@ -438,7 +446,8 @@ def file(path, name=None):
         mime = mimetypes.guess_type(path)[0]
         size = os.path.getsize(path)
         filename = os.path.basename(path) if not name else name
-        headers = {'Content-Type': mime, 'Content-Disposition': 'attachment;filename='+filename, 'Content-Length': size}
+        headers = {'Content-Type': mime, 'Content-Disposition': 'attachment;filename=' + filename,
+                   'Content-Length': size}
         return FileWrapper(f, 8192), 200, headers
     raise FileNotFoundError()
 
@@ -594,6 +603,7 @@ def config(cfg):
                     _include(module, *args)
                 else:
                     _include(module, args)
+
             if isinstance(modules_, list):
                 for target in modules_:
                     handle(target)
@@ -660,6 +670,7 @@ class Request(WRequest):
     Request class which inherits from werkzeug's request class
     It adds the json function
     """
+
     @property
     def json(self):
         """

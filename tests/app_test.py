@@ -90,5 +90,12 @@ class TestHtml(unittest.TestCase):
         self.assertIn(b'Hello swapy!', r.data)
 
 
+class TestErrors(unittest.TestCase):
+
+    def test_not_found(self):
+        r = c.get('something')
+        self.assertEqual(r.status_code, 404)
+
+
 if __name__ == '__main__':
     unittest.main()
