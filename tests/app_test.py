@@ -95,6 +95,11 @@ def test_environment():
     assert r.data == b'secret'
 
 
+def test_env_another():
+    r = c.get('env')
+    assert r.data == b'secret'
+
+
 def test_another():
     r = c.get('test')
     assert r.status_code == 200

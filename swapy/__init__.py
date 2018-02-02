@@ -310,6 +310,7 @@ def _include(module, target, prefix=''):
         rule = '{}{}'.format(prefix, route.rule)
         new_route = Rule(rule, endpoint=route.endpoint, methods=route.methods, strict_slashes=False)
         state.url_map.add(new_route)
+    state_target.environment = state.environment
 
 
 def _environment(module, data):
@@ -321,7 +322,7 @@ def _environment(module, data):
     :param data: dict
     """
     state = _state(module)
-    state.environment = data
+    state.environment.parse(data)
 
 
 def _build_app(module):
@@ -391,8 +392,57 @@ class _State:
         self.routes = {}
         self.ssl = None
         self.shared = None
-        self.environment = {}
+        self.environment = _Environment()
         self.debug = False
+
+
+class _Environment:
+    """
+    Environment class
+    I need it that it can be referenced
+    """
+    __slots__ = ['data', 'development', 'production']
+
+    def __init__(self, data=None, development=None, production=None):
+        if data is None:
+            data = {}
+        self.data = data
+        self.development = development
+        self.production = production
+
+    def parse(self, data):
+        self.development = data.get('development')
+        self.production = data.get('production')
+        data.pop('development')
+        data.pop('production')
+        self.data = data
+
+    def get(self, key, runtime=None):
+        if self.production and self.development:
+            if runtime == 'development':
+                return self.development.get(key)
+            elif runtime == 'production':
+                return self.production.get(key)
+            else:
+                self.data.get(key)
+        else:
+            return self.data.get(key)
+
+    def set(self, key, value, runtime=None):
+        if key == 'development' or key == 'production':
+            raise AttributeError('Key {} is a reserved environment variable. You can\'t use it it this case.')
+        if runtime is None:
+            self.data[key] = value
+        elif runtime == 'development':
+            if not self.development:
+                self.development = {}
+            self.development[key] = value
+        elif runtime == 'production':
+            if not self.production:
+                self.production = {}
+            self.production[key] = value
+        else:
+            raise AttributeError('Parameter "status" must be None, "production" or "development"')
 
 
 def render(file_path, **kwargs):
@@ -506,37 +556,20 @@ def get_env(key):
     :return: any
     """
     state = _state(_caller())
-    if 'production' in state.environment and 'development' in state.environment:
-        if state.debug:
-            return state.environment['development'].get(key)
-        else:
-            return state.environment['production'].get(key)
-    else:
-        return state.environment.get(key)
+    return state.environment.get(key, 'development' if state.debug else 'production')
 
 
-def set_env(key, value, status=None):
+def set_env(key, value, runtime=None):
     """
     Sets a value for a key in the global environment
 
     :param key: str
     :param value: any
-    :param status: str
+    :param runtime: str
         It is None, "development" or "production"
     """
     state = _state(_caller())
-    if status is None:
-        state.environment[key] = value
-    elif status == 'development':
-        if 'development' not in state.environment:
-            state.environment[status] = {}
-        state.environment[status][key] = value
-    elif status == 'production':
-        if 'production' not in state.environment:
-            state.environment[status] = {}
-        state.environment[status][key] = value
-    else:
-        raise AttributeError('Parameter "status" must be None, "production" or "development"')
+    state.environment.set(key, value, runtime)
 
 
 def ssl(host='127.0.0.1', path=None):
@@ -738,9 +771,12 @@ def run(host='127.0.0.1', port=5000, debug=False, module_name=None):
     :param module_name: str
         Starts the app from the specific module if given
     """
-    state = _state(_caller())
+    module = _caller()
+    state = _state(module)
     state.debug = debug
     module = module_name if module_name else _caller()
+    if debug and module is not '__main__':
+        print('Warning: Please do not run apps outside of main')
     run_simple(host, port, _build_app(module), use_debugger=debug, use_reloader=debug, ssl_context=state.ssl)
 
 
