@@ -17,13 +17,7 @@ from jinja2.environment import Environment
 
 from .middlewares import ExceptionMiddleware
 
-_url_map = {}
-_middlewares = {}
-_on_error = {}
-_on_not_found = {}
-_routes = {}
-_ssl_for = {}
-_shared_dir = {}
+_modules = {}
 
 
 def _caller():
@@ -48,27 +42,27 @@ def _caller_frame():
 
 def _init(module):
     """
-    Adds every module which is calling first time to routes and middlewares
+    Adds a state object for every module into the modules list
 
     :param module: str
         The name of the module which should be initialized
     """
-    global _url_map, _middlewares, _on_error, _on_not_found, _ssl_for, _shared_dir
+    global _modules
+    if module not in _modules:
+        _modules[module] = _State()
 
-    if module not in _url_map:
-        _url_map[module] = Map([])
-    if module not in _routes:
-        _routes[module] = {}
-    if module not in _middlewares:
-        _middlewares[module] = []
-    if module not in _on_error:
-        _on_error[module] = ExceptionMiddleware
-    if module not in _on_not_found:
-        _on_not_found[module] = ExceptionMiddleware
-    if module not in _ssl_for:
-        _ssl_for[module] = None
-    if module not in _shared_dir:
-        _shared_dir[module] = None
+
+def _state(module):
+    """
+    Returns state of the given module
+
+    :param module: str
+        The name of the module
+    :return: _State
+    """
+    global _modules
+    _init(module)
+    return _modules[module]
 
 
 def _error_handler(e, module):
@@ -79,9 +73,9 @@ def _error_handler(e, module):
     :param module: str
         Name of the module
     """
-    global _on_error
+    state = _state(module)
     try:
-        res = _on_error[module](e)
+        res = state.on_error(e)
         if type(res) == tuple:
             return Response(*res)
         else:
@@ -99,9 +93,8 @@ def _error(module, f):
     :param f: callable
         The function which will be set for the module as error handler
     """
-    global _on_error
-    _init(module)
-    _on_error[module] = f
+    state = _state(module)
+    state.on_error = f
 
 
 def _not_found_handler(e, module):
@@ -113,9 +106,9 @@ def _not_found_handler(e, module):
         Name of the module
     :return: Response | Exception
     """
-    global _on_not_found
+    state = _state(module)
     try:
-        res = _on_not_found[module](e)
+        res = state.on_not_found(e)
         if type(res) == tuple:
             return Response(*res)
         else:
@@ -133,13 +126,13 @@ def _shared(frame, directory):
     :param directory:
         Absolute path or relative path
     """
-    global _shared_dir
     module_name = frame.f_globals['__name__']
+    state = _state(module_name)
     if directory is True:
         directory = 'shared'
     directory = os.path.join(os.path.dirname(frame.f_globals['__file__']), directory)
     directory = directory.replace('\\', '/')
-    _shared_dir[module_name] = directory
+    state.shared = directory
 
 
 def _find_route(name):
@@ -151,11 +144,9 @@ def _find_route(name):
     :return: Rule | None
         Route rule from werkzeug
     """
-
-    global _url_map
-    for module in _url_map.keys():
-        routes = _url_map[module]
-        for route in routes:
+    global _modules
+    for state in _modules.keys():
+        for route in state.url_map:
             if route['url'] == name:
                 return route
     return None
@@ -175,8 +166,7 @@ def _register_route(module, url='/', methods=('GET', 'POST', 'PUT', 'DELETE')):
     :return: callable
         A decorator which registers a function
     """
-    global _url_map, _middlewares, _on_error, _routes
-    _init(module)
+    state = _state(module)
 
     #  Adjust path
     if not url.startswith('/'):
@@ -185,7 +175,7 @@ def _register_route(module, url='/', methods=('GET', 'POST', 'PUT', 'DELETE')):
         url = '/<path:path>'
 
     # Check if rule already exists
-    for route in _url_map[module].iter_rules():
+    for route in state.url_map.iter_rules():
         if route.rule == url and [method for method in route.methods if method in methods]:
             raise Exception('Path "{}" already exists in "{}". Cannot add route to module "{}". '
                             'Maybe you included routes with the same url?'.format(route.rule, module, module))
@@ -198,12 +188,10 @@ def _register_route(module, url='/', methods=('GET', 'POST', 'PUT', 'DELETE')):
         :return: callable
             Returns f
         """
-        mws = _middlewares[module]
-
         def handle(*_, **kwargs):
             target = f
             req = kwargs['req']
-            for m in mws:
+            for m in state.middlewares:
                 target = m(target)
             try:
                 res = target(req)
@@ -216,10 +204,9 @@ def _register_route(module, url='/', methods=('GET', 'POST', 'PUT', 'DELETE')):
 
         name = str(uuid.uuid4())
         rule = Rule(url, methods=methods, endpoint=name, strict_slashes=False)
-        _url_map[module].add(rule)
-        _routes[module][name] = {'function': handle, 'on_error': _on_error[module], 'url': url}
+        state.url_map.add(rule)
+        state.routes[name] = {'function': handle, 'on_error': state.on_error, 'url': url}
         return f
-
     return decorator
 
 
@@ -232,10 +219,9 @@ def _use(module, *middlewares_):
     :param middlewares_: callable[]
         List of decorators / middlewares
     """
-    global _middlewares
-    _init(module)
+    state = _state(module)
     for middleware in middlewares_:
-        _middlewares[module].append(middleware)
+        state.middlewares.append(middleware)
 
 
 def _ssl(module, host='127.0.0.1', path=None):
@@ -252,15 +238,15 @@ def _ssl(module, host='127.0.0.1', path=None):
         If empty you have to install python OpenSSL lib
         Default = None
     """
-    global _ssl_for
+    state = _state(module)
     if path:
-        _ssl_for[module] = make_ssl_devcert(path, host=host)
+        state.ssl = make_ssl_devcert(path, host=host)
     else:
         import importlib
         # noinspection PyDeprecation
         open_ssl = importlib.find_loader('OpenSSL')
         if open_ssl:
-            _ssl_for[module] = 'adhoc'
+            state.ssl = 'adhoc'
         else:
             raise ModuleNotFoundError('SSL generation requires the PyOpenSSl module. Please install it or pass the path\
              to your self generated certificate')
@@ -275,26 +261,23 @@ def _favicon(module, path):
     :param path: str
         Path to favicon file
     """
-
     def handle():
         with open(path, 'rb') as f:
             return f.read()
-
     _register_route(module, '/favicon.ico')(handle)
 
 
 def _not_found(module, f):
     """
-    Registers not found function
+    Registers "not found" function
 
     :param module: str
         Name of the module
     :param f: callable
         Function which will be registered
     """
-    global _on_not_found
-    _init(module)
-    _on_not_found[module] = f
+    state = _state(module)
+    state.on_not_found = f
 
 
 def _include(module, target, prefix=''):
@@ -308,26 +291,37 @@ def _include(module, target, prefix=''):
     :param prefix: str
         Route prefix for functions of the source module
     """
-    global _url_map
-    _init(module)
-    _init(target.__name__)
+    state = _state(module)
+    state_target = _state(target.__name__)
     if not prefix.startswith('/') and len(prefix) >= 1:
         prefix = '/{}'.format(prefix)
     if prefix == '/':
         prefix = ''
-    routes = _url_map[target.__name__]
+    routes = state_target.url_map
     for route in routes.iter_rules():
         rule = '{}{}'.format(prefix, route.rule)
-        for r in _url_map[module].iter_rules():
+        for r in state.url_map.iter_rules():
             if rule == r.rule:
                 raise Exception('Path "{}" already exists in "{}". Module "{}" cannot be included in "{}".'
                                 .format(rule, module, target.__name__, module))
-    for name in _routes[target.__name__].keys():
-        _routes[module][name] = _routes[target.__name__][name]
+    for name in state_target.routes.keys():
+        state.routes[name] = state_target.routes[name]
     for route in routes.iter_rules():
         rule = '{}{}'.format(prefix, route.rule)
         new_route = Rule(rule, endpoint=route.endpoint, methods=route.methods, strict_slashes=False)
-        _url_map[module].add(new_route)
+        state.url_map.add(new_route)
+
+
+def _environment(module, data):
+    """
+    Sets the environment data to the given module
+
+    :param module: str
+        The name of the module
+    :param data: dict
+    """
+    state = _state(module)
+    state.environment = data
 
 
 def _build_app(module):
@@ -339,19 +333,18 @@ def _build_app(module):
     :return: callable
         The application
     """
-
-    global _url_map, _routes, _shared_dir
+    state = _state(module)
 
     @responder
     def application(environ, _):
-        urls = _url_map[module].bind_to_environ(environ)
+        urls = state.url_map.bind_to_environ(environ)
         req = Request(environ)
 
         def dispatch(endpoint, args):
             try:
                 args = dict(args)
                 setattr(req, 'url_args', args)
-                f = _routes[module][endpoint]['function']
+                f = state.routes[endpoint]['function']
                 try:
                     res = f(req=req)
                 except TypeError:
@@ -376,11 +369,30 @@ def _build_app(module):
             result = _not_found_handler(e, module)
         return result
 
-    if _shared_dir[module]:
+    if state.shared:
         return SharedDataMiddleware(application, {
-            '/shared': _shared_dir[module]
+            '/shared': state.shared
         })
     return application
+
+
+class _State:
+    """
+    State class for every module
+    """
+    __slots__ = ['url_map', 'middlewares', 'on_error', 'on_not_found',
+                 'routes', 'ssl', 'shared', 'environment', 'debug']
+
+    def __init__(self):
+        self.url_map = Map([])
+        self.middlewares = []
+        self.on_error = ExceptionMiddleware
+        self.on_not_found = ExceptionMiddleware
+        self.routes = {}
+        self.ssl = None
+        self.shared = None
+        self.environment = {}
+        self.debug = False
 
 
 def render(file_path, **kwargs):
@@ -460,6 +472,71 @@ def favicon(path):
         Path to the file
     """
     _favicon(_caller(), path)
+
+
+def environment(data):
+    """
+    Sets the given data as environment
+
+    The keys "production" and "development" are reserved.
+    All keys in "production" are used if the app runs without the debug=True.
+    I the other case "development" is used.
+
+    Example:
+        'production': {
+            'host': '0.0.0.0'
+        },
+        'development': {
+            'host': '127.0.0.1'
+        }
+
+        If the app starts without debug mode the "host" key with the value "0.0.0.0" is the priority value.
+
+    :param data: dict
+    """
+    module = _caller()
+    _environment(module, data)
+
+
+def get_env(key):
+    """
+    Returns the value of the give key in environment variables
+
+    :param key: str
+    :return: any
+    """
+    state = _state(_caller())
+    if 'production' in state.environment and 'development' in state.environment:
+        if state.debug:
+            return state.environment['development'].get(key)
+        else:
+            return state.environment['production'].get(key)
+    else:
+        return state.environment.get(key)
+
+
+def set_env(key, value, status=None):
+    """
+    Sets a value for a key in the global environment
+
+    :param key: str
+    :param value: any
+    :param status: str
+        It is None, "development" or "production"
+    """
+    state = _state(_caller())
+    if status is None:
+        state.environment[key] = value
+    elif status == 'development':
+        if 'development' not in state.environment:
+            state.environment[status] = {}
+        state.environment[status][key] = value
+    elif status == 'production':
+        if 'production' not in state.environment:
+            state.environment[status] = {}
+        state.environment[status][key] = value
+    else:
+        raise AttributeError('Parameter "status" must be None, "production" or "development"')
 
 
 def ssl(host='127.0.0.1', path=None):
@@ -623,6 +700,8 @@ def config(cfg):
             _not_found(module, cfg['not_found'])
         if cfg.get('shared'):
             _shared(_caller_frame(), cfg['shared'])
+        if cfg.get('environment'):
+            _environment(module, cfg['environment'])
     else:
         raise TypeError('Type {} is not supported as config. Please use a dict.'.format(type(cfg)))
 
@@ -659,10 +738,10 @@ def run(host='127.0.0.1', port=5000, debug=False, module_name=None):
     :param module_name: str
         Starts the app from the specific module if given
     """
-    global _ssl_for
-
+    state = _state(_caller())
+    state.debug = debug
     module = module_name if module_name else _caller()
-    run_simple(host, port, _build_app(module), use_debugger=debug, use_reloader=debug, ssl_context=_ssl_for[module])
+    run_simple(host, port, _build_app(module), use_debugger=debug, use_reloader=debug, ssl_context=state.ssl)
 
 
 class Request(WRequest):
@@ -670,7 +749,6 @@ class Request(WRequest):
     Request class which inherits from werkzeug's request class
     It adds the json function
     """
-
     @property
     def json(self):
         """
