@@ -1,101 +1,100 @@
 import sys
 import os
-sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)) + '/../')
-
-# noinspection PyUnresolvedReferences
-from swapy.testing import client
-import unittest
 import app
 import json
 
-# run_test(app.application)
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)) + '/../')
+# noinspection PyUnresolvedReferences
+from swapy.testing import client
+
 c = client(app.application)
 
 
-class TestFile(unittest.TestCase):
-
-    def test_app_file(self):
-        r = c.get('app-file')
-        self.assertEqual(r.headers['Content-Disposition'], 'attachment;filename=app.py')
-
-    def test_app_shared_file(self):
-        r = c.get('shared/myFile.png')
-        self.assertEqual(r.status_code, 200)
+def test_app_file():
+    r = c.get('app-file')
+    assert r.headers['Content-Disposition'] == 'attachment;filename=app.py'
 
 
-class TestWorking(unittest.TestCase):
-
-    def test_get(self):
-        r = c.get('')
-        self.assertEqual(r.data, b'Hello Swapy! :)')
-
-    def test_code(self):
-        r = c.get('')
-        self.assertEqual(r.status_code, 200)
-
-    def test_post(self):
-        r = c.get('')
-        self.assertEqual(r.status_code, 200)
-
-    def test_put(self):
-        r = c.put('', data=json.dumps({'name': 'Daniel'}), headers={'Content-Type': 'application/json'})
-        self.assertEqual(r.data, b'Daniel')
-
-    def test_delete(self):
-        r = c.get('')
-        self.assertEqual(r.status_code, 200)
+def test_app_shared_file():
+    r = c.get('shared/myFile.png')
+    assert r.status_code == 200
 
 
-class TestExceptKeyMiddleware(unittest.TestCase):
-
-    def test_form_keys_error(self):
-        r = c.post('create')
-        self.assertEqual(r.status_code, 400)
-
-    def test_form_code(self):
-        r = c.post('create', data={'test': 'something'})
-        self.assertEqual(r.status_code, 200)
-
-    def test_content(self):
-        r = c.post('create', data={'test': 'something'})
-        self.assertEqual(r.data, b'something')
+def test_get():
+    r = c.get('')
+    assert r.data == b'Hello Swapy! :)'
 
 
-class TestJsonMiddleware(unittest.TestCase):
-
-    def test_json(self):
-        r = c.get('json')
-        self.assertEqual(json.loads(r.data.decode())['message'], 'hi')
-
-    def test_header(self):
-        r = c.get('json')
-        self.assertEqual(r.headers['Content-Type'], 'application/json')
+def test_code():
+    r = c.get('')
+    assert r.status_code == 200
 
 
-class TestDatabaseWorking(unittest.TestCase):
-
-    def test_sqlite(self):
-        r = c.get('db')
-        self.assertEqual(r.data, b'true')
+def test_post():
+    r = c.get('')
+    assert r.status_code == 200
 
 
-class TestHtml(unittest.TestCase):
-
-    def test_header(self):
-        r = c.get('html')
-        self.assertEqual(r.headers['Content-Type'], 'text/html')
-
-    def test_render(self):
-        r = c.get('html')
-        self.assertIn(b'Hello swapy!', r.data)
+def test_put():
+    r = c.put('', data=json.dumps({'name': 'Daniel'}), headers={'Content-Type': 'application/json'})
+    assert r.data == b'Daniel'
 
 
-class TestErrors(unittest.TestCase):
-
-    def test_not_found(self):
-        r = c.get('something')
-        self.assertEqual(r.status_code, 404)
+def test_delete():
+    r = c.get('')
+    assert r.status_code == 200
 
 
-if __name__ == '__main__':
-    unittest.main()
+def test_form_keys_error():
+    r = c.post('create')
+    assert r.status_code == 400
+
+
+def test_form_code():
+    r = c.post('create', data={'test': 'something'})
+    assert r.status_code == 200
+
+
+def test_content():
+    r = c.post('create', data={'test': 'something'})
+    assert r.data == b'something'
+
+
+def test_json():
+    r = c.get('json')
+    assert json.loads(r.data.decode())['message'] == 'hi'
+
+
+def test_json_header():
+    r = c.get('json')
+    assert r.headers['Content-Type'] == 'application/json'
+
+
+def test_sqlite():
+    r = c.get('db')
+    assert r.data == b'true'
+
+
+def test_html_header():
+    r = c.get('html')
+    assert r.headers['Content-Type'] == 'text/html'
+
+
+def test_html_render():
+    r = c.get('html')
+    assert b'Hello swapy!' in r.data
+
+
+def test_not_found():
+    r = c.get('something')
+    assert r.status_code == 404
+
+
+def test_environment():
+    r = c.get('checkSecretKey')
+    assert r.data == b'secret'
+
+
+def test_another():
+    r = c.get('test')
+    assert r.status_code == 200

@@ -1,15 +1,18 @@
 import sys
 import os
-sys.path.append(os.path.abspath('../'))
-
+import sqlite3
+import another
+# Only for testing
+if os.path.exists('../swapy/__init__.py'):
+    sys.path.append(os.path.abspath('../'))
+else:
+    sys.path.append(os.path.abspath('./'))
 # noinspection PyUnresolvedReferences
-from swapy import on_get, run, file, redirect, config, app, on_post, on_put, on_delete, render
+from swapy import on_get, run, file, redirect, config, app, on_post, on_put, on_delete, render, get_env
 # noinspection PyUnresolvedReferences
 from swapy.middlewares import JsonMiddleware, JsonException, ExpectKeysMiddleware, HtmlMiddleware
-import another
-import sqlite3
-conn = sqlite3.connect(':memory:', check_same_thread=False)
 
+conn = sqlite3.connect(':memory:', check_same_thread=False)
 # ssl('127.0.0.1')
 # error(JsonException)
 # use(JsonMiddleware)
@@ -18,7 +21,15 @@ conn = sqlite3.connect(':memory:', check_same_thread=False)
 config({
     'error': JsonException,
     'include': another,
-    'shared': True
+    'shared': True,
+    'environment': {
+        'production': {
+            'secret_key': 'secret'
+        },
+        'development': {
+            'secret_key': 'not_secret'
+        }
+    }
 })
 
 
@@ -80,9 +91,10 @@ def html():
     return render('shared/index.html', text='Hello swapy!')
 
 
-# @on('/*')
-# def not_found(req):
-#     return {'message': 'Endpoint \'{}\' doesn\'t exists'.format(req.path)}, 404
+@on_get('checkSecretKey')
+def env():
+    return get_env('secret_key')
+
 
 if __name__ == '__main__':
     run(debug=True)

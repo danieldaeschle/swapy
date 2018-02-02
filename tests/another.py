@@ -1,7 +1,10 @@
 import sys
 import os
-sys.path.append(os.path.abspath('../'))
-
+# Only for testing
+if os.path.exists('../swapy/__init__.py'):
+    sys.path.append(os.path.abspath('../'))
+else:
+    sys.path.append(os.path.abspath('./'))
 from swapy import on
 
 
