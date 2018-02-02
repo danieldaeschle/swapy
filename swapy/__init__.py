@@ -658,7 +658,7 @@ def config(cfg):
     It also handles the entry 'environment' key which can contains 'production' and 'development' or just
         global variables.
     The variables can used by extensions.
-    'production' and 'development' are reserved varaibles in this case which you can't use if you don't want to
+    'production' and 'development' are reserved variables in this case which you can't use if you don't want to
         separate that.
 
     :param cfg: dict
