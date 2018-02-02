@@ -582,7 +582,7 @@ def config(cfg):
         global variables.
     The variables can used by extensions.
     'production' and 'development' are reserved varaibles in this case which you can't use if you don't want to
-        seperate that.
+        separate that.
 
     :param cfg: dict
         The config dict
