@@ -103,3 +103,9 @@ def test_env_another():
 def test_another():
     r = c.get('test')
     assert r.status_code == 200
+
+
+def test_session():
+    c.get('set_session')
+    r = c.get('get_session')
+    assert r.data == b'value'

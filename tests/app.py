@@ -96,6 +96,18 @@ def env():
     return get_env('secret_key')
 
 
+@on_get('set_session')
+def session(req):
+    req.session['key'] = 'value'
+    return '', 200
+
+
+@on_get('get_session')
+def session(req):
+    val = req.session.get('key')
+    return val
+
+
 if __name__ == '__main__':
     run(debug=True)
 

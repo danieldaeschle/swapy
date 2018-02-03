@@ -11,6 +11,7 @@ from werkzeug.routing import Rule, Map
 from werkzeug.wsgi import responder, FileWrapper, SharedDataMiddleware
 from werkzeug.urls import iri_to_uri
 from werkzeug.utils import escape
+from werkzeug.contrib.sessions import FilesystemSessionStore, SessionMiddleware
 
 from jinja2 import FileSystemLoader
 from jinja2.environment import Environment
@@ -335,11 +336,17 @@ def _build_app(module):
         The application
     """
     state = _state(module)
+    session_store = FilesystemSessionStore()
 
     @responder
     def application(environ, _):
         urls = state.url_map.bind_to_environ(environ)
         req = Request(environ)
+        sid = req.cookies.get('session_id')
+        if sid is None:
+            req.session = session_store.new()
+        else:
+            req.session = session_store.get(sid)
 
         def dispatch(endpoint, args):
             try:
@@ -368,10 +375,13 @@ def _build_app(module):
             result = urls.dispatch(dispatch)
         except NotFound as e:
             result = _not_found_handler(e, module)
+        if req.session.should_save:
+            session_store.save(req.session)
+            result.set_cookie('session_id', req.session.sid)
         return result
 
     if state.shared:
-        return SharedDataMiddleware(application, {
+        application = SharedDataMiddleware(application, {
             '/shared': state.shared
         })
     return application
@@ -785,6 +795,8 @@ class Request(WRequest):
     Request class which inherits from werkzeug's request class
     It adds the json function
     """
+    session = None
+
     @property
     def json(self):
         """
