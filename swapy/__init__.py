@@ -196,7 +196,7 @@ def _register_route(module, url='/', methods=('GET', 'POST', 'PUT', 'DELETE')):
             try:
                 res = target(*args, **kwargs)
             except TypeError as e:
-                if 'positional arguments' in str(e):
+                if 'arguments' in str(e):
                     res = target(**kwargs)
                 else:
                     res = target(*args, **kwargs)
