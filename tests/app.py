@@ -7,10 +7,9 @@ if os.path.exists('../swapy/__init__.py'):
     sys.path.append(os.path.abspath('../'))
 else:
     sys.path.append(os.path.abspath('./'))
-# noinspection PyUnresolvedReferences
-from swapy import on_get, run, file, redirect, config, app, on_post, on_put, on_delete, render, get_env
-# noinspection PyUnresolvedReferences
+from swapy import on_get, run, file, redirect, config, app, on_post, on_put, render, get_env
 from swapy.middlewares import JsonMiddleware, JsonException, ExpectKeysMiddleware, HtmlMiddleware
+from swapy.wrappers import Response
 
 conn = sqlite3.connect(':memory:', check_same_thread=False)
 # ssl('127.0.0.1')
@@ -69,6 +68,12 @@ def app_file():
     return file('test/app.py')
 
 
+@on_get('file-json')
+@JsonMiddleware
+def file_json():
+    return file('test/app.py')
+
+
 @on_get('/error')
 def error():
     return object
@@ -106,6 +111,18 @@ def session(req):
 def session(req):
     val = req.session.get('key')
     return val
+
+
+@on_get('set_cookie')
+def cookie():
+    res = Response()
+    res.cookies({'key': 'value'})
+    return res
+
+
+@on_get('get_cookie')
+def cookie(req):
+    return req.cookies['key']
 
 
 if __name__ == '__main__':

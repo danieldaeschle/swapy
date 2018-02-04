@@ -1,5 +1,6 @@
 import json
 from werkzeug.exceptions import HTTPException, abort
+from .wrappers import response_from
 
 
 def json_exception(error):
@@ -46,20 +47,14 @@ def json_middleware(f):
     :return: callable
     """
     def handle(*args, **kwargs):
-        result = f(*args, **kwargs)  # Returns -> content[, status_code][, headers]
-        code = 200
-        headers = {}
-        if type(result) == tuple:
-            res = result[0]
-            code = result[1] if len(result) > 1 else None
-            headers = result[2] if len(result) > 2 else {}
-        else:
-            res = result
+        result = f(*args, **kwargs)
+        response = response_from(result)
         try:
-            headers['Content-Type'] = 'application/json'
-            return json.dumps(res, indent=4), code, headers
+            response.content = json.dumps(response.content, indent=4)
         except TypeError:
-            return result
+            return response
+        response.headers['Content-Type'] = 'application/json'
+        return response
     return handle
 
 
@@ -72,13 +67,9 @@ def html_middleware(f):
     """
     def handle(*args, **kwargs):
         result = f(*args, **kwargs)
-        if isinstance(result, tuple):
-            body = result[0]
-            code = result[1] if len(result) > 1 else 200
-            headers = result[2] if len(result) > 2 else {}
-            headers['Content-Type'] = 'text/html'
-            return body, code, headers
-        return result, 200, {'Content-Type': 'text/html'}
+        response = response_from(result)
+        response.headers['Content-Type'] = 'text/html'
+        return response
     return handle
 
 
@@ -89,23 +80,19 @@ def cors_middleware(f):
     :param f: callable
     :return: callable
     """
-    def handle(*args, **kwargs):
-        req = kwargs['req']
-        result = f(*args, **kwargs)
+    def handle(req):
+        result = f(req)
+        response = response_from(result)
         if req.method == 'OPTIONS':
             return '200 OK', 200, {'Content-Type': 'text/plain'}
-        if isinstance(result, tuple):
-            body = result[0]
-            code = result[1] if len(result) > 1 else 200
-            headers = result[2] if len(result) > 2 else {}
-            headers['Content-Type'] = 'text/html'
-            headers['Access-Control-Allow-Origin'] = '*'
-            headers['Access-Control-Allow-Headers'] = '*'
-            headers['Access-Control-Allow-Credentials'] = 'true'
-            headers['Access-Control-Allow-Methods'] = 'GET, PUT, POST, DELETE, HEAD, PATCH, OPTIONS'
-            headers['Access-Control-Expose-Headers'] = '*'
-            return body, code, headers
-        return result
+        else:
+            response.headers['Content-Type'] = 'text/html'
+            response.headers['Access-Control-Allow-Origin'] = '*'
+            response.headers['Access-Control-Allow-Headers'] = '*'
+            response.headers['Access-Control-Allow-Credentials'] = 'true'
+            response.headers['Access-Control-Allow-Methods'] = 'GET, PUT, POST, DELETE, HEAD, PATCH, OPTIONS'
+            response.headers['Access-Control-Expose-Headers'] = '*'
+        return response
     return handle
 
 
@@ -118,11 +105,11 @@ def expect_keys_middleware(f):
     """
     def handle(*args, **kwargs):
         try:
-            res = f(*args, **kwargs)
+            result = f(*args, **kwargs)
         except KeyError:
-            res = None
+            result = None
             abort(400)
-        return res
+        return response_from(result)
     return handle
 
 

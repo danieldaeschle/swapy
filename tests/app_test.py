@@ -15,6 +15,11 @@ def test_app_file():
     assert r.headers['Content-Disposition'] == 'attachment;filename=app.py'
 
 
+def test_app_file_json():
+    r = c.get('file-json')
+    assert r.headers['Content-Disposition'] == 'attachment;filename=app.py'
+
+
 def test_app_shared_file():
     r = c.get('shared/myFile.png')
     assert r.status_code == 200
@@ -48,6 +53,11 @@ def test_delete():
 def test_form_keys_error():
     r = c.post('create')
     assert r.status_code == 400
+
+
+def test_error():
+    r = c.get('error')
+    assert r.status_code == 500
 
 
 def test_form_code():
@@ -108,4 +118,10 @@ def test_another():
 def test_session():
     c.get('set_session')
     r = c.get('get_session')
+    assert r.data == b'value'
+
+
+def test_cookies():
+    c.get('set_cookie')
+    r = c.get('get_cookie')
     assert r.data == b'value'

@@ -1,22 +1,22 @@
 import inspect
-import json
 import uuid
 import os
 import mimetypes
 
-from werkzeug.wrappers import Request as WRequest, Response
-from werkzeug.exceptions import HTTPException, NotFound
+from werkzeug.wrappers import Response as WResponse
+from werkzeug.exceptions import HTTPException, NotFound, InternalServerError
 from werkzeug.serving import run_simple, make_ssl_devcert
 from werkzeug.routing import Rule, Map
 from werkzeug.wsgi import responder, FileWrapper, SharedDataMiddleware
 from werkzeug.urls import iri_to_uri
 from werkzeug.utils import escape
-from werkzeug.contrib.sessions import FilesystemSessionStore, SessionMiddleware
+from werkzeug.contrib.sessions import FilesystemSessionStore
 
 from jinja2 import FileSystemLoader
 from jinja2.environment import Environment
 
 from .middlewares import ExceptionMiddleware
+from .wrappers import Request, Response, response_from
 
 _modules = {}
 
@@ -78,9 +78,9 @@ def _error_handler(e, module):
     try:
         res = state.on_error(e)
         if type(res) == tuple:
-            return Response(*res)
+            return WResponse(*res)
         else:
-            return Response(res)
+            return WResponse(res)
     except TypeError:
         return e
 
@@ -105,15 +105,15 @@ def _not_found_handler(e, module):
     :param e: Exception
     :param module: str
         Name of the module
-    :return: Response | Exception
+    :return: WResponse | Exception
     """
     state = _state(module)
     try:
         res = state.on_not_found(e)
         if type(res) == tuple:
-            return Response(*res)
+            return WResponse(*res)
         else:
-            return Response(res)
+            return WResponse(res)
     except TypeError:
         return e
 
@@ -189,15 +189,17 @@ def _register_route(module, url='/', methods=('GET', 'POST', 'PUT', 'DELETE')):
         :return: callable
             Returns f
         """
-        def handle(*_, **kwargs):
+        def handle(*args, **kwargs):
             target = f
-            req = kwargs['req']
             for m in state.middlewares:
-                target = m(target)
+                target = m(lambda *a, **kw: Response(*target(*a, **kw)))
             try:
-                res = target(req)
-            except TypeError:
-                res = target()
+                res = target(*args, **kwargs)
+            except TypeError as e:
+                if 'positional arguments' in str(e):
+                    res = target(**kwargs)
+                else:
+                    res = target(*args, **kwargs)
             if res:
                 return res
             else:
@@ -208,6 +210,7 @@ def _register_route(module, url='/', methods=('GET', 'POST', 'PUT', 'DELETE')):
         state.url_map.add(rule)
         state.routes[name] = {'function': handle, 'on_error': state.on_error, 'url': url}
         return f
+
     return decorator
 
 
@@ -262,9 +265,11 @@ def _favicon(module, path):
     :param path: str
         Path to favicon file
     """
+
     def handle():
         with open(path, 'rb') as f:
             return f.read()
+
     _register_route(module, '/favicon.ico')(handle)
 
 
@@ -353,20 +358,15 @@ def _build_app(module):
                 args = dict(args)
                 setattr(req, 'url_args', args)
                 f = state.routes[endpoint]['function']
+                res = response_from(f(req))
                 try:
-                    res = f(req=req)
+                    iter(res.content)
                 except TypeError:
-                    res = f()
-
-                # Checks if the type is iterable to prevent more errors
-                iter(res)
-
-                if isinstance(res, tuple) or isinstance(res, tuple) and isinstance(res[0], FileWrapper):
-                    return Response(*res, direct_passthrough=True)
-                elif isinstance(res, FileWrapper):
-                    return Response(res, direct_passthrough=True)
-                else:
-                    return Response(res)
+                    raise InternalServerError('Result {} of \'{}\' is not a valid response'.format(res.content, req.path))
+                ret = WResponse(res.content, res.code, res.headers, direct_passthrough=True)
+                for cookie in res.get_cookies().keys():
+                    ret.set_cookie(cookie, res.get_cookies()[cookie])
+                return ret
             except NotFound as ex:
                 return _not_found_handler(ex, module)
             except HTTPException as ex:
@@ -476,7 +476,7 @@ def render(file_path, **kwargs):
 
 def redirect(location, code=301):
     """
-    Returns a redirect response
+    Returns a redirect WResponse
 
     :param location: str
         Url where the user should be redirect
@@ -487,7 +487,7 @@ def redirect(location, code=301):
         See more at Wikipedia - Http Status Codes
         Default = 301
     :return: (str, int, dict)
-        Redirect response
+        Redirect WResponse
     """
     location = iri_to_uri(location, safe_conversion=True)
     response = '<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2 Final//EN">\n' \
@@ -500,7 +500,7 @@ def redirect(location, code=301):
 
 def file(path, name=None):
     """
-    Returns a file response
+    Returns a file WResponse
 
     :param path: str
         Path to the file
@@ -785,27 +785,6 @@ def run(host='127.0.0.1', port=5000, debug=False, module_name=None):
     state = _state(module)
     state.debug = debug
     module = module_name if module_name else _caller()
-    if debug and module is not '__main__':
+    if debug and module != '__main__':
         print('Warning: Please do not run apps outside of main')
     run_simple(host, port, _build_app(module), use_debugger=debug, use_reloader=debug, ssl_context=state.ssl)
-
-
-class Request(WRequest):
-    """
-    Request class which inherits from werkzeug's request class
-    It adds the json function
-    """
-    session = None
-
-    @property
-    def json(self):
-        """
-        Returns dict from json string if available
-
-        :return: dict
-        """
-        try:
-            content = json.loads(self.data.decode())
-        except json.JSONDecodeError:
-            content = {}
-        return content
