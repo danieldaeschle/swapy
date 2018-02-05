@@ -122,7 +122,7 @@ def cookie():
 
 @on_get('get_cookie')
 def cookie(req):
-    return req.cookies['key']
+    return req.cookies.get('key')
 
 
 @on_get('set_secure_cookie')
