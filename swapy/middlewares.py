@@ -18,7 +18,7 @@ def json_exception(error):
         return json.dumps({'message': str(error), 'status_code': 500}, indent=4), 500
 
 
-def exception_middleware(error):
+def default_exception(error):
     """
     Default exception middleware
     
@@ -114,8 +114,8 @@ def expect_keys_middleware(f):
 
 
 JsonException = json_exception
+DefaultException = default_exception
 JsonMiddleware = json_middleware
 HtmlMiddleware = html_middleware
-ExceptionMiddleware = exception_middleware
 CorsMiddleware = cors_middleware
 ExpectKeysMiddleware = expect_keys_middleware

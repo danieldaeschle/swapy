@@ -32,7 +32,6 @@ environment({
 })
 
 
-
 @on_get()
 def root():
     return 'Hello Swapy! :)', 200, {}
