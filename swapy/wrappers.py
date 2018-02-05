@@ -1,7 +1,7 @@
 from werkzeug.wrappers import BaseRequest
 from werkzeug.contrib.securecookie import SecureCookie as SecureCookie
 import json
-from swapy import _utils
+from . import _utils
 
 
 def response_from(args):
