@@ -132,7 +132,7 @@ def secure_cookie(req):
 
 @on_get('get_secure_cookie')
 def secure_cookie(req):
-    return req.secure_cookie['key']
+    return req.secure_cookie.get('key')
 
 
 if __name__ == '__main__':
