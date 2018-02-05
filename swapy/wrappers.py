@@ -1,7 +1,7 @@
 from werkzeug.wrappers import BaseRequest
 from werkzeug.contrib.securecookie import SecureCookie as SecureCookie
 import json
-from . import utils
+from ._utils import caller, state
 
 
 def response_from(args):
@@ -44,13 +44,13 @@ class Request(BaseRequest):
 
     @property
     def secure_cookie(self):
-        return self.get_secure_cookie(utils.caller())
+        return self.get_secure_cookie(caller())
 
     def get_secure_cookie(self, module=None):
         if module is None:
-            module = utils.caller()
-        state = utils.state(module)
-        secret_key = state.environment.get('secret_key')
+            module = caller()
+        state_ = state(module)
+        secret_key = state_.environment.get('secret_key')
         if not secret_key:
             raise Exception('\'secret_key\' value must be set in environment')
         if not self._secure_cookie:

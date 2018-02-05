@@ -9,7 +9,7 @@ from werkzeug.utils import escape
 from jinja2 import FileSystemLoader
 from jinja2.environment import Environment
 
-from . import utils
+from . import _utils
 
 
 def render(file_path, **kwargs):
@@ -23,7 +23,7 @@ def render(file_path, **kwargs):
     :return: str
         Rendered HTML file
     """
-    module = utils.caller_frame()
+    module = _utils.caller_frame()
     path = os.path.dirname(os.path.realpath(module.f_globals['__file__']))
     env = Environment()
     env.loader = FileSystemLoader(path)
@@ -69,7 +69,7 @@ def file(path, name=None):
         FileWrapper class from werkzeug
     """
     if not os.path.isabs(path):
-        path = os.path.abspath(utils.caller_frame().f_globals['__file__'])
+        path = os.path.abspath(_utils.caller_frame().f_globals['__file__'])
     f = open(path, 'rb')
     if file:
         mime = mimetypes.guess_type(path)[0]
@@ -88,7 +88,7 @@ def favicon(path):
     :param path: str
         Path to the file
     """
-    utils.favicon(utils.caller(), path)
+    _utils.favicon(_utils.caller(), path)
 
 
 def environment(data):
@@ -111,8 +111,8 @@ def environment(data):
 
     :param data: dict
     """
-    module = utils.caller()
-    utils.environment(module, data)
+    module = _utils.caller()
+    _utils.environment(module, data)
 
 
 def get_env(key):
@@ -122,7 +122,7 @@ def get_env(key):
     :param key: str
     :return: any
     """
-    state = utils.state(utils.caller())
+    state = _utils.state(_utils.caller())
     return state.environment.get(key)
 
 
@@ -135,7 +135,7 @@ def set_env(key, value, runtime=None):
     :param runtime: str
         It is None, "development" or "production"
     """
-    state = utils.state(utils.caller())
+    state = _utils.state(_utils.caller())
     state.environment.set(key, value, runtime)
 
 
@@ -152,7 +152,7 @@ def ssl(host='127.0.0.1', path=None):
         Default = None
     :return:
     """
-    utils.ssl(utils.caller(), host, path)
+    _utils.ssl(_utils.caller(), host, path)
 
 
 def error(f):
@@ -162,7 +162,7 @@ def error(f):
     :param f: callable
         Callable should receive an Exception object as parameter
     """
-    utils.error(utils.caller(), f)
+    _utils.error(_utils.caller(), f)
 
 
 def shared(directory):
@@ -172,8 +172,8 @@ def shared(directory):
     :param directory: str
         Path to the directory
     """
-    module = utils.caller_frame()
-    utils.shared(module, directory)
+    module = _utils.caller_frame()
+    _utils.shared(module, directory)
 
 
 def not_found(f):
@@ -183,7 +183,7 @@ def not_found(f):
     :param f: callable
         Callable should receive an Exception object as parameter
     """
-    utils.not_found(utils.caller(), f)
+    _utils.not_found(_utils.caller(), f)
 
 
 def on(url='/', methods=('GET', 'POST', 'PUT', 'DELETE')):
@@ -196,7 +196,7 @@ def on(url='/', methods=('GET', 'POST', 'PUT', 'DELETE')):
         Default = ('GET', 'POST', 'PUT', 'DELETE')
     :return: callable
     """
-    return utils.register_route(utils.caller(), url, methods)
+    return _utils.register_route(_utils.caller(), url, methods)
 
 
 def on_get(url='/'):
@@ -206,7 +206,7 @@ def on_get(url='/'):
     :param url: str
     :return: callable
     """
-    return utils.register_route(utils.caller(), url, methods=['GET'])
+    return _utils.register_route(_utils.caller(), url, methods=['GET'])
 
 
 def on_post(url='/'):
@@ -216,7 +216,7 @@ def on_post(url='/'):
     :param url: str
     :return: callable
     """
-    return utils.register_route(utils.caller(), url, methods=['POST'])
+    return _utils.register_route(_utils.caller(), url, methods=['POST'])
 
 
 def on_put(url='/'):
@@ -226,7 +226,7 @@ def on_put(url='/'):
     :param url: str
     :return: callable
     """
-    return utils.register_route(utils.caller(), url, methods=['PUT'])
+    return _utils.register_route(_utils.caller(), url, methods=['PUT'])
 
 
 def on_delete(url='/'):
@@ -236,7 +236,7 @@ def on_delete(url='/'):
     :param url: str
     :return: callable
     """
-    return utils.register_route(utils.caller(), url, methods=['DELETE'])
+    return _utils.register_route(_utils.caller(), url, methods=['DELETE'])
 
 
 def include(module, prefix=''):
@@ -249,7 +249,7 @@ def include(module, prefix=''):
         Routes from the source module will get the prefix in front of their route
         Default = ''
     """
-    utils.include(utils.caller(), module, prefix)
+    _utils.include(_utils.caller(), module, prefix)
 
 
 def config(cfg):
@@ -264,22 +264,22 @@ def config(cfg):
     :param cfg: dict
         The config dict
     """
-    module = utils.caller()
+    module = _utils.caller()
     if isinstance(cfg, dict):
         if cfg.get('use'):
             middlewares_ = cfg['use']
             if isinstance(middlewares_, (tuple, list)):
-                utils.use(module, *middlewares_)
+                _utils.use(module, *middlewares_)
             else:
-                utils.use(module, middlewares_)
+                _utils.use(module, middlewares_)
         if cfg.get('include'):
             modules_ = cfg['include']
 
             def handle(args):
                 if isinstance(args, (tuple, list)):
-                    utils.include(module, *args)
+                    _utils.include(module, *args)
                 else:
-                    utils.include(module, args)
+                    _utils.include(module, args)
 
             if isinstance(modules_, list):
                 for target in modules_:
@@ -287,21 +287,21 @@ def config(cfg):
             else:
                 handle(modules_)
         if cfg.get('error'):
-            utils.error(module, cfg['error'])
+            _utils.error(module, cfg['error'])
         if cfg.get('ssl'):
             ssl_ = cfg['ssl']
             if isinstance(ssl_, (tuple, list)):
-                utils.ssl(module, *ssl_)
+                _utils.ssl(module, *ssl_)
             else:
-                utils.ssl(module, ssl_)
+                _utils.ssl(module, ssl_)
         if cfg.get('favicon'):
-            utils.favicon(module, cfg['favicon'])
+            _utils.favicon(module, cfg['favicon'])
         if cfg.get('not_found'):
-            utils.not_found(module, cfg['not_found'])
+            _utils.not_found(module, cfg['not_found'])
         if cfg.get('shared'):
-            utils.shared(utils.caller_frame(), cfg['shared'])
+            _utils.shared(_utils.caller_frame(), cfg['shared'])
         if cfg.get('environment'):
-            utils.environment(module, cfg['environment'])
+            _utils.environment(module, cfg['environment'])
     else:
         raise TypeError('Type {} is not supported as config. Please use a dict.'.format(type(cfg)))
 
@@ -313,7 +313,7 @@ def use(*middlewares_):
     :param middlewares_: callable[]
          Arguments of decorators / middlewares
     """
-    utils.use(utils.caller(), *middlewares_)
+    _utils.use(_utils.caller(), *middlewares_)
 
 
 def app():
@@ -323,7 +323,7 @@ def app():
     :return: callable
         The app
     """
-    return utils.build_app(utils.caller())
+    return _utils.build_app(_utils.caller())
 
 
 def run(host='127.0.0.1', port=5000, debug=False, module_name=None):
@@ -338,10 +338,10 @@ def run(host='127.0.0.1', port=5000, debug=False, module_name=None):
     :param module_name: str
         Starts the app from the specific module if given
     """
-    module = utils.caller()
-    state = utils.state(module)
+    module = _utils.caller()
+    state = _utils.state(module)
     state.debug = debug
-    module = module_name if module_name else utils.caller()
+    module = module_name if module_name else _utils.caller()
     if debug and module != '__main__':
         print('Warning: Please do not run apps outside of main')
-    run_simple(host, port, utils.build_app(module), use_debugger=debug, use_reloader=debug, ssl_context=state.ssl)
+    run_simple(host, port, _utils.build_app(module), use_debugger=debug, use_reloader=debug, ssl_context=state.ssl)
