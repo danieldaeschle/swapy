@@ -7,7 +7,7 @@ if os.path.exists('../swapy/__init__.py'):
     sys.path.append(os.path.abspath('../'))
 else:
     sys.path.append(os.path.abspath('./'))
-from swapy import on_get, run, file, redirect, config, app, on_post, on_put, render, get_env
+from swapy import on_get, run, file, redirect, config, app, on_post, on_put, render, get_env, environment
 from swapy.middlewares import JsonMiddleware, JsonException, ExpectKeysMiddleware, HtmlMiddleware
 from swapy.wrappers import Response
 
@@ -20,16 +20,17 @@ conn = sqlite3.connect(':memory:', check_same_thread=False)
 config({
     'error': JsonException,
     'include': another,
-    'shared': True,
-    'environment': {
-        'production': {
-            'secret_key': 'secret'
-        },
-        'development': {
-            'secret_key': 'not_secret'
-        }
+    'shared': True
+})
+environment({
+    'production': {
+        'secret_key': 'secret'
+    },
+    'development': {
+        'secret_key': 'not_secret'
     }
 })
+
 
 
 @on_get()

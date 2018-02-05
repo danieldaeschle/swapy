@@ -126,17 +126,15 @@ def get_env(key):
     return state.environment.get(key)
 
 
-def set_env(key, value, runtime=None):
+def set_env(key, value):
     """
     Sets a value for a key in the global environment
 
     :param key: str
     :param value: any
-    :param runtime: str
-        It is None, "development" or "production"
     """
     state = _utils.state(_utils.caller())
-    state.environment.set(key, value, runtime)
+    state.environment.set(key, value)
 
 
 def ssl(host='127.0.0.1', path=None):
