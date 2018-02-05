@@ -114,8 +114,10 @@ def session(req):
 
 
 @on_get('set_cookie')
-def cookie(req):
-    req.set_cookies({'key': 'value'})
+def cookie():
+    res = Response()
+    res.set_cookies({'key': 'value'})
+    return res
 
 
 @on_get('get_cookie')

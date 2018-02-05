@@ -10,6 +10,7 @@ def response_from(args):
     :param args: object
     :return: Response
     """
+    print()
     if isinstance(args, tuple):
         if len(args) == 1 and isinstance(args[0], Response):
             return args[0]
@@ -29,7 +30,6 @@ class Request(BaseRequest):
     _secure_cookie = None
     state = None
     url_args = None
-    cookies_ = {}
 
     @property
     def json(self):
@@ -55,10 +55,6 @@ class Request(BaseRequest):
         if not self._secure_cookie:
             self._secure_cookie = SecureCookie.load_cookie(self, secret_key=secret_key.encode())
         return self._secure_cookie
-
-    def set_cookies(self, data):
-        for key in data.keys():
-            self.cookies_[key] = data[key]
 
 
 class Response:
