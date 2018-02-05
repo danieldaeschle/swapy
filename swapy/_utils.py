@@ -4,7 +4,7 @@ import os
 
 from werkzeug.wsgi import responder, SharedDataMiddleware
 from werkzeug.serving import make_ssl_devcert
-from werkzeug.wrappers import Response as WResponse
+from werkzeug.wrappers import Response
 from werkzeug.exceptions import HTTPException, NotFound, InternalServerError
 from werkzeug.routing import Rule, Map
 from werkzeug.contrib.sessions import FilesystemSessionStore
@@ -72,9 +72,9 @@ def error_handler(e, module):
     try:
         res = state_.on_error(e)
         if type(res) == tuple:
-            return WResponse(*res)
+            return Response(*res)
         else:
-            return WResponse(res)
+            return Response(res)
     except TypeError:
         return e
 
@@ -105,9 +105,9 @@ def not_found_handler(e, module):
     try:
         res = state_.on_not_found(e)
         if type(res) == tuple:
-            return WResponse(*res)
+            return Response(*res)
         else:
-            return WResponse(res)
+            return Response(res)
     except TypeError:
         return e
 
@@ -341,6 +341,7 @@ def build_app(module):
     def application(environ, _):
         urls = state_.url_map.bind_to_environ(environ)
         req = Request(environ)
+        req.state = state_
         sid = req.cookies.get('session_id')
         if sid is None:
             req.session = session_store.new()
@@ -350,7 +351,7 @@ def build_app(module):
         def dispatch(endpoint, args):
             try:
                 args = dict(args)
-                setattr(req, 'url_args', args)
+                req.url_args = args
                 f = state_.routes[endpoint]['function']
                 res = response_from(f(req))
                 try:
@@ -358,10 +359,10 @@ def build_app(module):
                 except TypeError:
                     raise InternalServerError('Result {} of \'{}\' is not a valid response'
                                               .format(res.content, req.path))
-                ret = WResponse(res.content, res.code, res.headers, direct_passthrough=True)
+                ret = Response(res.content, res.code, res.headers, direct_passthrough=True)
                 for cookie in res.get_cookies().keys():
                     ret.set_cookie(cookie, res.get_cookies()[cookie])
-                req.get_secure_cookie(module).save_cookie(ret)
+                req.secure_cookie.save_cookie(ret)
                 return ret
             except NotFound as ex:
                 return not_found_handler(ex, module)
