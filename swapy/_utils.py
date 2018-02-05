@@ -9,7 +9,7 @@ from werkzeug.exceptions import HTTPException, NotFound, InternalServerError
 from werkzeug.routing import Rule, Map
 from werkzeug.contrib.sessions import FilesystemSessionStore
 
-from .middlewares import ExceptionMiddleware
+from .middlewares import DefaultException
 from .wrappers import Request, response_from
 
 _modules = {}
@@ -393,8 +393,8 @@ class State:
     def __init__(self):
         self.url_map = Map([])
         self.middlewares = []
-        self.on_error = ExceptionMiddleware
-        self.on_not_found = ExceptionMiddleware
+        self.on_error = DefaultException
+        self.on_not_found = DefaultException
         self.routes = {}
         self.ssl = None
         self.shared = None
