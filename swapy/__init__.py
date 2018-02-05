@@ -1,458 +1,15 @@
-import inspect
-import uuid
 import os
 import mimetypes
 
-from werkzeug.wrappers import Response as WResponse
-from werkzeug.exceptions import HTTPException, NotFound, InternalServerError
-from werkzeug.serving import run_simple, make_ssl_devcert
-from werkzeug.routing import Rule, Map
-from werkzeug.wsgi import responder, FileWrapper, SharedDataMiddleware
+from werkzeug.serving import run_simple
+from werkzeug.wsgi import FileWrapper
 from werkzeug.urls import iri_to_uri
 from werkzeug.utils import escape
-from werkzeug.contrib.sessions import FilesystemSessionStore
 
 from jinja2 import FileSystemLoader
 from jinja2.environment import Environment
 
-from .middlewares import ExceptionMiddleware
-from .wrappers import Request, Response, response_from
-
-_modules = {}
-
-
-def _caller():
-    """
-    Returns the module which calls swapy
-
-    :return: str
-        Name of the module
-    """
-    return inspect.currentframe().f_back.f_back.f_globals['__name__']
-
-
-def _caller_frame():
-    """
-    Returns the frame of the module which calls swapy
-
-    :return: Frame
-        Frame of the module
-    """
-    return inspect.currentframe().f_back.f_back
-
-
-def _init(module):
-    """
-    Adds a state object for every module into the modules list
-
-    :param module: str
-        The name of the module which should be initialized
-    """
-    global _modules
-    if module not in _modules:
-        _modules[module] = _State()
-
-
-def _state(module):
-    """
-    Returns state of the given module
-
-    :param module: str
-        The name of the module
-    :return: _State
-    """
-    global _modules
-    _init(module)
-    return _modules[module]
-
-
-def _error_handler(e, module):
-    """
-    Handles the errors at requests
-
-    :param e: Exception
-    :param module: str
-        Name of the module
-    """
-    state = _state(module)
-    try:
-        res = state.on_error(e)
-        if type(res) == tuple:
-            return WResponse(*res)
-        else:
-            return WResponse(res)
-    except TypeError:
-        return e
-
-
-def _error(module, f):
-    """
-    Sets the given function to the given module as error handler
-
-    :param module: str
-        Name of the module
-    :param f: callable
-        The function which will be set for the module as error handler
-    """
-    state = _state(module)
-    state.on_error = f
-
-
-def _not_found_handler(e, module):
-    """
-    Error handler if the route is not found
-
-    :param e: Exception
-    :param module: str
-        Name of the module
-    :return: WResponse | Exception
-    """
-    state = _state(module)
-    try:
-        res = state.on_not_found(e)
-        if type(res) == tuple:
-            return WResponse(*res)
-        else:
-            return WResponse(res)
-    except TypeError:
-        return e
-
-
-def _shared(frame, directory):
-    """
-    Adds a directory as shared for the given module
-
-    :param frame: Frame
-        Frame of the module
-    :param directory:
-        Absolute path or relative path
-    """
-    module_name = frame.f_globals['__name__']
-    state = _state(module_name)
-    if directory is True:
-        directory = 'shared'
-    directory = os.path.join(os.path.dirname(frame.f_globals['__file__']), directory)
-    directory = directory.replace('\\', '/')
-    state.shared = directory
-
-
-def _find_route(name):
-    """
-    Returns the route by name (url)
-
-    :param name: str
-        Url of the route
-    :return: Rule | None
-        Route rule from werkzeug
-    """
-    global _modules
-    for state in _modules.keys():
-        for route in state.url_map:
-            if route['url'] == name:
-                return route
-    return None
-
-
-def _register_route(module, url='/', methods=('GET', 'POST', 'PUT', 'DELETE')):
-    """
-    Adds a route to the module which calls this
-
-    :param module: str
-        Name of the module
-    :param url: str
-        Default = '/'
-    :param methods:
-        HTTP methods
-        Default = ('GET', 'POST', 'PUT', 'DELETE')
-    :return: callable
-        A decorator which registers a function
-    """
-    state = _state(module)
-
-    #  Adjust path
-    if not url.startswith('/'):
-        url = '/{}'.format(url)
-    if url == '/*':
-        url = '/<path:path>'
-
-    # Check if rule already exists
-    for route in state.url_map.iter_rules():
-        if route.rule == url and [method for method in route.methods if method in methods]:
-            raise Exception('Path "{}" already exists in "{}". Cannot add route to module "{}". '
-                            'Maybe you included routes with the same url?'.format(route.rule, module, module))
-
-    def decorator(f):
-        """
-        Registers a function as route
-
-        :param f: callable
-        :return: callable
-            Returns f
-        """
-        def handle(*args, **kwargs):
-            target = f
-            for m in state.middlewares:
-                target = m(lambda *a, **kw: Response(*target(*a, **kw)))
-            try:
-                res = target(*args, **kwargs)
-            except TypeError as e:
-                if 'arguments' in str(e):
-                    res = target(**kwargs)
-                else:
-                    res = target(*args, **kwargs)
-            if res:
-                return res
-            else:
-                return ''
-
-        name = str(uuid.uuid4())
-        rule = Rule(url, methods=methods, endpoint=name, strict_slashes=False)
-        state.url_map.add(rule)
-        state.routes[name] = {'function': handle, 'on_error': state.on_error, 'url': url}
-        return f
-
-    return decorator
-
-
-def _use(module, *middlewares_):
-    """
-    Registers middlewares
-
-    :param module: str
-        Name of the module
-    :param middlewares_: callable[]
-        List of decorators / middlewares
-    """
-    state = _state(module)
-    for middleware in middlewares_:
-        state.middlewares.append(middleware)
-
-
-def _ssl(module, host='127.0.0.1', path=None):
-    """
-    Adds SSL support for development
-
-    :param module: str
-        Name of the module
-    :param host: str
-        Domain or IP of the server
-        Default = '127.0.0.1'
-    :param path: str
-        Path to cert files (without .crt and .key ending)
-        If empty you have to install python OpenSSL lib
-        Default = None
-    """
-    state = _state(module)
-    if path:
-        state.ssl = make_ssl_devcert(path, host=host)
-    else:
-        import importlib
-        # noinspection PyDeprecation
-        open_ssl = importlib.find_loader('OpenSSL')
-        if open_ssl:
-            state.ssl = 'adhoc'
-        else:
-            raise ModuleNotFoundError('SSL generation requires the PyOpenSSl module. Please install it or pass the path\
-             to your self generated certificate')
-
-
-def _favicon(module, path):
-    """
-    Registers route for favicon
-
-    :param module: str
-        Name of the module
-    :param path: str
-        Path to favicon file
-    """
-
-    def handle():
-        with open(path, 'rb') as f:
-            return f.read()
-
-    _register_route(module, '/favicon.ico')(handle)
-
-
-def _not_found(module, f):
-    """
-    Registers "not found" function
-
-    :param module: str
-        Name of the module
-    :param f: callable
-        Function which will be registered
-    """
-    state = _state(module)
-    state.on_not_found = f
-
-
-def _include(module, target, prefix=''):
-    """
-    Includes all functions from source module into target module
-
-    :param module: str
-        Name of the source module
-    :param target: str
-        Name of the target module
-    :param prefix: str
-        Route prefix for functions of the source module
-    """
-    state = _state(module)
-    state_target = _state(target.__name__)
-    if not prefix.startswith('/') and len(prefix) >= 1:
-        prefix = '/{}'.format(prefix)
-    if prefix == '/':
-        prefix = ''
-    routes = state_target.url_map
-    for route in routes.iter_rules():
-        rule = '{}{}'.format(prefix, route.rule)
-        for r in state.url_map.iter_rules():
-            if rule == r.rule:
-                raise Exception('Path "{}" already exists in "{}". Module "{}" cannot be included in "{}".'
-                                .format(rule, module, target.__name__, module))
-    for name in state_target.routes.keys():
-        state.routes[name] = state_target.routes[name]
-    for route in routes.iter_rules():
-        rule = '{}{}'.format(prefix, route.rule)
-        new_route = Rule(rule, endpoint=route.endpoint, methods=route.methods, strict_slashes=False)
-        state.url_map.add(new_route)
-    state_target.environment = state.environment
-
-
-def _environment(module, data):
-    """
-    Sets the environment data to the given module
-
-    :param module: str
-        The name of the module
-    :param data: dict
-    """
-    state = _state(module)
-    state.environment.parse(data)
-
-
-def _build_app(module):
-    """
-    Returns the built app
-
-    :param module: str
-        Name of the module
-    :return: callable
-        The application
-    """
-    state = _state(module)
-    session_store = FilesystemSessionStore()
-
-    @responder
-    def application(environ, _):
-        urls = state.url_map.bind_to_environ(environ)
-        req = Request(environ)
-        sid = req.cookies.get('session_id')
-        if sid is None:
-            req.session = session_store.new()
-        else:
-            req.session = session_store.get(sid)
-
-        def dispatch(endpoint, args):
-            try:
-                args = dict(args)
-                setattr(req, 'url_args', args)
-                f = state.routes[endpoint]['function']
-                res = response_from(f(req))
-                try:
-                    iter(res.content)
-                except TypeError:
-                    raise InternalServerError('Result {} of \'{}\' is not a valid response'.format(res.content, req.path))
-                ret = WResponse(res.content, res.code, res.headers, direct_passthrough=True)
-                for cookie in res.get_cookies().keys():
-                    ret.set_cookie(cookie, res.get_cookies()[cookie])
-                return ret
-            except NotFound as ex:
-                return _not_found_handler(ex, module)
-            except HTTPException as ex:
-                return _error_handler(ex, module)
-        try:
-            result = urls.dispatch(dispatch)
-        except NotFound as e:
-            result = _not_found_handler(e, module)
-        if req.session.should_save:
-            session_store.save(req.session)
-            result.set_cookie('session_id', req.session.sid)
-        return result
-
-    if state.shared:
-        application = SharedDataMiddleware(application, {
-            '/shared': state.shared
-        })
-    return application
-
-
-class _State:
-    """
-    State class for every module
-    """
-    __slots__ = ['url_map', 'middlewares', 'on_error', 'on_not_found',
-                 'routes', 'ssl', 'shared', 'environment', 'debug']
-
-    def __init__(self):
-        self.url_map = Map([])
-        self.middlewares = []
-        self.on_error = ExceptionMiddleware
-        self.on_not_found = ExceptionMiddleware
-        self.routes = {}
-        self.ssl = None
-        self.shared = None
-        self.environment = _Environment()
-        self.debug = False
-
-
-class _Environment:
-    """
-    Environment class
-    I need it that it can be referenced
-    """
-    __slots__ = ['data', 'development', 'production']
-
-    def __init__(self, data=None, development=None, production=None):
-        if data is None:
-            data = {}
-        self.data = data
-        self.development = development
-        self.production = production
-
-    def parse(self, data):
-        self.development = data.get('development')
-        self.production = data.get('production')
-        data.pop('development')
-        data.pop('production')
-        self.data = data
-
-    def get(self, key, runtime=None):
-        if self.production and self.development:
-            if runtime == 'development':
-                return self.development.get(key)
-            elif runtime == 'production':
-                return self.production.get(key)
-            else:
-                self.data.get(key)
-        else:
-            return self.data.get(key)
-
-    def set(self, key, value, runtime=None):
-        if key == 'development' or key == 'production':
-            raise AttributeError('Key {} is a reserved environment variable. You can\'t use it it this case.')
-        if runtime is None:
-            self.data[key] = value
-        elif runtime == 'development':
-            if not self.development:
-                self.development = {}
-            self.development[key] = value
-        elif runtime == 'production':
-            if not self.production:
-                self.production = {}
-            self.production[key] = value
-        else:
-            raise AttributeError('Parameter "status" must be None, "production" or "development"')
+from . import _utils
 
 
 def render(file_path, **kwargs):
@@ -466,7 +23,7 @@ def render(file_path, **kwargs):
     :return: str
         Rendered HTML file
     """
-    module = _caller_frame()
+    module = _utils.caller_frame()
     path = os.path.dirname(os.path.realpath(module.f_globals['__file__']))
     env = Environment()
     env.loader = FileSystemLoader(path)
@@ -512,7 +69,7 @@ def file(path, name=None):
         FileWrapper class from werkzeug
     """
     if not os.path.isabs(path):
-        path = os.path.abspath(_caller_frame().f_globals['__file__'])
+        path = os.path.abspath(_utils.caller_frame().f_globals['__file__'])
     f = open(path, 'rb')
     if file:
         mime = mimetypes.guess_type(path)[0]
@@ -531,7 +88,7 @@ def favicon(path):
     :param path: str
         Path to the file
     """
-    _favicon(_caller(), path)
+    _utils.favicon(_utils.caller(), path)
 
 
 def environment(data):
@@ -554,8 +111,8 @@ def environment(data):
 
     :param data: dict
     """
-    module = _caller()
-    _environment(module, data)
+    module = _utils.caller()
+    _utils.environment(module, data)
 
 
 def get_env(key):
@@ -565,8 +122,8 @@ def get_env(key):
     :param key: str
     :return: any
     """
-    state = _state(_caller())
-    return state.environment.get(key, 'development' if state.debug else 'production')
+    state = _utils.state(_utils.caller())
+    return state.environment.get(key)
 
 
 def set_env(key, value, runtime=None):
@@ -578,7 +135,7 @@ def set_env(key, value, runtime=None):
     :param runtime: str
         It is None, "development" or "production"
     """
-    state = _state(_caller())
+    state = _utils.state(_utils.caller())
     state.environment.set(key, value, runtime)
 
 
@@ -595,7 +152,7 @@ def ssl(host='127.0.0.1', path=None):
         Default = None
     :return:
     """
-    _ssl(_caller(), host, path)
+    _utils.ssl(_utils.caller(), host, path)
 
 
 def error(f):
@@ -605,7 +162,7 @@ def error(f):
     :param f: callable
         Callable should receive an Exception object as parameter
     """
-    _error(_caller(), f)
+    _utils.error(_utils.caller(), f)
 
 
 def shared(directory):
@@ -615,8 +172,8 @@ def shared(directory):
     :param directory: str
         Path to the directory
     """
-    module = _caller_frame()
-    _shared(module, directory)
+    module = _utils.caller_frame()
+    _utils.shared(module, directory)
 
 
 def not_found(f):
@@ -626,7 +183,7 @@ def not_found(f):
     :param f: callable
         Callable should receive an Exception object as parameter
     """
-    _not_found(_caller(), f)
+    _utils.not_found(_utils.caller(), f)
 
 
 def on(url='/', methods=('GET', 'POST', 'PUT', 'DELETE')):
@@ -639,7 +196,7 @@ def on(url='/', methods=('GET', 'POST', 'PUT', 'DELETE')):
         Default = ('GET', 'POST', 'PUT', 'DELETE')
     :return: callable
     """
-    return _register_route(_caller(), url, methods)
+    return _utils.register_route(_utils.caller(), url, methods)
 
 
 def on_get(url='/'):
@@ -649,7 +206,7 @@ def on_get(url='/'):
     :param url: str
     :return: callable
     """
-    return _register_route(_caller(), url, methods=['GET'])
+    return _utils.register_route(_utils.caller(), url, methods=['GET'])
 
 
 def on_post(url='/'):
@@ -659,7 +216,7 @@ def on_post(url='/'):
     :param url: str
     :return: callable
     """
-    return _register_route(_caller(), url, methods=['POST'])
+    return _utils.register_route(_utils.caller(), url, methods=['POST'])
 
 
 def on_put(url='/'):
@@ -669,7 +226,7 @@ def on_put(url='/'):
     :param url: str
     :return: callable
     """
-    return _register_route(_caller(), url, methods=['PUT'])
+    return _utils.register_route(_utils.caller(), url, methods=['PUT'])
 
 
 def on_delete(url='/'):
@@ -679,7 +236,7 @@ def on_delete(url='/'):
     :param url: str
     :return: callable
     """
-    return _register_route(_caller(), url, methods=['DELETE'])
+    return _utils.register_route(_utils.caller(), url, methods=['DELETE'])
 
 
 def include(module, prefix=''):
@@ -692,7 +249,7 @@ def include(module, prefix=''):
         Routes from the source module will get the prefix in front of their route
         Default = ''
     """
-    _include(_caller(), module, prefix)
+    _utils.include(_utils.caller(), module, prefix)
 
 
 def config(cfg):
@@ -707,22 +264,22 @@ def config(cfg):
     :param cfg: dict
         The config dict
     """
-    module = _caller()
+    module = _utils.caller()
     if isinstance(cfg, dict):
         if cfg.get('use'):
             middlewares_ = cfg['use']
             if isinstance(middlewares_, (tuple, list)):
-                _use(module, *middlewares_)
+                _utils.use(module, *middlewares_)
             else:
-                _use(module, middlewares_)
+                _utils.use(module, middlewares_)
         if cfg.get('include'):
             modules_ = cfg['include']
 
             def handle(args):
                 if isinstance(args, (tuple, list)):
-                    _include(module, *args)
+                    _utils.include(module, *args)
                 else:
-                    _include(module, args)
+                    _utils.include(module, args)
 
             if isinstance(modules_, list):
                 for target in modules_:
@@ -730,21 +287,21 @@ def config(cfg):
             else:
                 handle(modules_)
         if cfg.get('error'):
-            _error(module, cfg['error'])
+            _utils.error(module, cfg['error'])
         if cfg.get('ssl'):
             ssl_ = cfg['ssl']
             if isinstance(ssl_, (tuple, list)):
-                _ssl(module, *ssl_)
+                _utils.ssl(module, *ssl_)
             else:
-                _ssl(module, ssl_)
+                _utils.ssl(module, ssl_)
         if cfg.get('favicon'):
-            _favicon(module, cfg['favicon'])
+            _utils.favicon(module, cfg['favicon'])
         if cfg.get('not_found'):
-            _not_found(module, cfg['not_found'])
+            _utils.not_found(module, cfg['not_found'])
         if cfg.get('shared'):
-            _shared(_caller_frame(), cfg['shared'])
+            _utils.shared(_utils.caller_frame(), cfg['shared'])
         if cfg.get('environment'):
-            _environment(module, cfg['environment'])
+            _utils.environment(module, cfg['environment'])
     else:
         raise TypeError('Type {} is not supported as config. Please use a dict.'.format(type(cfg)))
 
@@ -756,7 +313,7 @@ def use(*middlewares_):
     :param middlewares_: callable[]
          Arguments of decorators / middlewares
     """
-    _use(_caller(), *middlewares_)
+    _utils.use(_utils.caller(), *middlewares_)
 
 
 def app():
@@ -766,7 +323,7 @@ def app():
     :return: callable
         The app
     """
-    return _build_app(_caller())
+    return _utils.build_app(_utils.caller())
 
 
 def run(host='127.0.0.1', port=5000, debug=False, module_name=None):
@@ -781,10 +338,10 @@ def run(host='127.0.0.1', port=5000, debug=False, module_name=None):
     :param module_name: str
         Starts the app from the specific module if given
     """
-    module = _caller()
-    state = _state(module)
+    module = _utils.caller()
+    state = _utils.state(module)
     state.debug = debug
-    module = module_name if module_name else _caller()
+    module = module_name if module_name else _utils.caller()
     if debug and module != '__main__':
         print('Warning: Please do not run apps outside of main')
-    run_simple(host, port, _build_app(module), use_debugger=debug, use_reloader=debug, ssl_context=state.ssl)
+    run_simple(host, port, _utils.build_app(module), use_debugger=debug, use_reloader=debug, ssl_context=state.ssl)

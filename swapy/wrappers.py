@@ -1,5 +1,7 @@
-from werkzeug.wrappers import Request as WRequest
+from werkzeug.wrappers import BaseRequest
+from werkzeug.contrib.securecookie import SecureCookie as SecureCookie
 import json
+from swapy import _utils
 
 
 def response_from(args):
@@ -19,12 +21,13 @@ def response_from(args):
         return Response(args)
 
 
-class Request(WRequest):
+class Request(BaseRequest):
     """
     Request class which inherits from werkzeug's request class
     It adds the json function
     """
     session = None
+    _secure_cookie = None
 
     @property
     def json(self):
@@ -38,6 +41,21 @@ class Request(WRequest):
         except json.JSONDecodeError:
             content = {}
         return content
+
+    @property
+    def secure_cookie(self):
+        return self.get_secure_cookie(_utils.caller())
+
+    def get_secure_cookie(self, module=None):
+        if module is None:
+            module = _utils.caller()
+        state = _utils.state(module)
+        secret_key = state.environment.get('secret_key')
+        if not secret_key:
+            raise Exception('\'secret_key\' value must be set in environment')
+        if not self._secure_cookie:
+            self._secure_cookie = SecureCookie.load_cookie(self, secret_key=secret_key.encode())
+        return self._secure_cookie
 
 
 class Response:
@@ -53,7 +71,15 @@ class Response:
         self.headers = headers
         self._cookies = {}
 
+    @property
+    def cookies(self):
+        return self.get_cookies()
+
+    @cookies.setter
     def cookies(self, data):
+        self.set_cookies(data)
+
+    def set_cookies(self, data):
         for key in data.keys():
             self._cookies[key] = data[key]
 

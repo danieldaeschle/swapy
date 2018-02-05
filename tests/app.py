@@ -116,13 +116,23 @@ def session(req):
 @on_get('set_cookie')
 def cookie():
     res = Response()
-    res.cookies({'key': 'value'})
+    res.cookies = {'key': 'value'}
     return res
 
 
 @on_get('get_cookie')
 def cookie(req):
     return req.cookies['key']
+
+
+@on_get('set_secure_cookie')
+def secure_cookie(req):
+    req.secure_cookie['key'] = 'value'
+
+
+@on_get('get_secure_cookie')
+def secure_cookie(req):
+    return req.secure_cookie['key']
 
 
 if __name__ == '__main__':
