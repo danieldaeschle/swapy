@@ -360,8 +360,8 @@ def build_app(module):
                     raise InternalServerError('Result {} of \'{}\' is not a valid response'
                                               .format(res.content, req.path))
                 ret = Response(res.content, res.code, res.headers, direct_passthrough=True)
-                for cookie in res.get_cookies().keys():
-                    ret.set_cookie(cookie, res.get_cookies()[cookie])
+                for cookie in req.cookies_.keys():
+                    ret.set_cookie(cookie, req.cookies_[cookie])
                 req.secure_cookie.save_cookie(ret)
                 return ret
             except NotFound as ex:
