@@ -435,16 +435,16 @@ class Environment:
 
     @property
     def runtime_data(self):
+        data = self.data
         runtime = 'development' if self._state.debug else 'production'
         if self.production and self.development:
             if runtime == 'development':
-                return self.development
+                for key in self.development.keys():
+                    data[key] = self.development[key]
             elif runtime == 'production':
-                return self.production
-            else:
-                return self.data
-        else:
-            return self.data
+                for key in self.production.keys():
+                    data[key] = self.production[key]
+        return data
 
     def get(self, key):
         return self.runtime_data.get(key)
