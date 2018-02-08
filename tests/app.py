@@ -58,7 +58,7 @@ def database():
 
 
 @on_get('/redirect')
-def redirect():
+def redirect_to_google():
     """Redirects to Google"""
     return redirect('https://google.de')
 
