@@ -5,11 +5,11 @@ from .wrappers import response_from
 
 def json_exception(error):
     """
-    Exception middleware which returns the error as JSOn string
+    Exception middleware which returns the error as JSON string
     -> {"message": error, "status_code": code}
     
     :param error: Exception
-        The Exception object
+        The exception object
     :return: str
     """
     if isinstance(error, HTTPException):
@@ -24,8 +24,7 @@ def default_exception(error):
     
     :param error: Exception
         The Exception object
-    :return: Exception
-        Will be converted to a string from the server
+    :return: str
     """
     if isinstance(error, HTTPException):
         return str(error), error.code
@@ -36,11 +35,6 @@ def default_exception(error):
 def json_middleware(f):
     """
     Returns every output from an route which has the JSON middleware to a JSON string
-    Use it with:
-        @json_middleware
-        ...
-    Or:
-        use(json_middleware)
     
     :param f: callable
         The route
