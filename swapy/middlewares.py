@@ -113,6 +113,7 @@ def expect_keys_middleware(f):
     return handle
 
 
+# Aliases for the function in camel case
 JsonException = json_exception
 DefaultException = default_exception
 JsonMiddleware = json_middleware
