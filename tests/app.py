@@ -22,14 +22,6 @@ config({
     'include': another,
     'shared': True
 })
-environment({
-    'production': {
-        'secret_key': 'secret'
-    },
-    'development': {
-        'secret_key': 'not_secret'
-    }
-})
 
 
 @on_get()
@@ -96,11 +88,6 @@ def html():
     return render('shared/index.html', text='Hello swapy!')
 
 
-@on_get('checkSecretKey')
-def env():
-    return get_env('secret_key')
-
-
 @on_get('set_session')
 def session(req):
     req.session['key'] = 'value'
@@ -123,16 +110,6 @@ def cookie():
 @on_get('get_cookie')
 def cookie(req):
     return req.cookies.get('key')
-
-
-@on_get('set_secure_cookie')
-def secure_cookie(req):
-    req.secure_cookie['key'] = 'value'
-
-
-@on_get('get_secure_cookie')
-def secure_cookie(req):
-    return req.secure_cookie.get('key')
 
 
 if __name__ == '__main__':

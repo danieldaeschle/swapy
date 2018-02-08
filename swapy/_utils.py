@@ -362,7 +362,8 @@ def build_app(module):
                 ret = Response(res.content, res.code, res.headers, direct_passthrough=True)
                 for cookie in res.cookies.keys():
                     ret.set_cookie(cookie, res.cookies[cookie])
-                req.secure_cookie.save_cookie(ret)
+                if req.state.environment.get('secret_key') is not None and req.secure_cookie.should_save:
+                    req.secure_cookie.save_cookie(ret)
                 return ret
             except NotFound as ex:
                 return not_found_handler(ex, module)

@@ -100,16 +100,6 @@ def test_not_found():
     assert r.status_code == 404
 
 
-def test_environment():
-    r = c.get('checkSecretKey')
-    assert r.data == b'secret'
-
-
-def test_env_another():
-    r = c.get('env')
-    assert r.data == b'secret'
-
-
 def test_another():
     r = c.get('test')
     assert r.status_code == 200
@@ -124,10 +114,4 @@ def test_session():
 def test_cookies():
     c.get('set_cookie')
     r = c.get('get_cookie')
-    assert r.data == b'value'
-
-
-def test_secure_cookie():
-    c.get('set_secure_cookie')
-    r = c.get('get_secure_cookie')
     assert r.data == b'value'
