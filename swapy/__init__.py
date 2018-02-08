@@ -10,6 +10,7 @@ from jinja2 import FileSystemLoader
 from jinja2.environment import Environment
 
 from . import _utils
+from .wrappers import Response
 
 
 def render(file_path, **kwargs):
@@ -33,37 +34,37 @@ def render(file_path, **kwargs):
 
 def redirect(location, code=301):
     """
-    Returns a redirect WResponse
+    Returns a redirect response
 
     :param location: str
         Url where the user should be redirect
         Example: https://github.com
     :param code: int
-        HTTP code which the server returns to the client
+        HTTP status code which the server returns to the client
         It should be any 3xx code
         See more at Wikipedia - Http Status Codes
         Default = 301
-    :return: (str, int, dict)
-        Redirect WResponse
+    :return: Response
+        Redirect response
     """
     location = iri_to_uri(location, safe_conversion=True)
-    response = '<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2 Final//EN">\n' \
-               '<title>Redirecting...</title>\n' \
-               '<h1>Redirecting...</h1>\n' \
-               '<p>You should be redirected automatically to target URL: ' \
-               '<a href="{}">{}</a>.  If not click the link.'.format(escape(location), escape(location))
-    return response, code, {'Location': location, 'Content-Type': 'text/html'}
+    content = '<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2 Final//EN">\n' \
+              '<title>Redirecting...</title>\n' \
+              '<h1>Redirecting...</h1>\n' \
+              '<p>You should be redirected automatically to target URL: ' \
+              '<a href="{}">{}</a>.  If not click the link.'.format(escape(location), escape(location))
+    return Response(content, code, {'Location': location, 'Content-Type': 'text/html'})
 
 
 def file(path, name=None):
     """
-    Returns a file WResponse
+    Returns a file response
 
     :param path: str
         Path to the file
     :param name: str
-        Name of the file
-        If it is None the name is like the file name
+        Name of the file which will be returned.
+        If it is None the name is like the real file name.
         Default = None
     :return: FileWrapper
         FileWrapper class from werkzeug
@@ -120,7 +121,7 @@ def get_env(key):
     Returns the value of the give key in environment variables
 
     :param key: str
-    :return: any
+    :return: object
     """
     state = _utils.state(_utils.caller())
     return state.environment.get(key)
@@ -131,7 +132,7 @@ def set_env(key, value):
     Sets a value for a key in the global environment
 
     :param key: str
-    :param value: any
+    :param value: object
     """
     state = _utils.state(_utils.caller())
     state.environment.set(key, value)
@@ -148,7 +149,6 @@ def ssl(host='127.0.0.1', path=None):
         Path to the certificates
         If it is None swapy generates certificates for development, but then you should have python OpenSSL installed
         Default = None
-    :return:
     """
     _utils.ssl(_utils.caller(), host, path)
 
@@ -241,8 +241,8 @@ def include(module, prefix=''):
     """
     Includes a source module into the target module
 
-    :param module: str
-        Name of the source module
+    :param module: module
+        The source module
     :param prefix: str
         Routes from the source module will get the prefix in front of their route
         Default = ''
@@ -309,7 +309,7 @@ def use(*middlewares_):
     Registers middlewares for global use
 
     :param middlewares_: callable[]
-         Arguments of decorators / middlewares
+         Arguments of middlewares (decorators)
     """
     _utils.use(_utils.caller(), *middlewares_)
 
@@ -326,10 +326,11 @@ def app():
 
 def run(host='127.0.0.1', port=5000, debug=False, module_name=None):
     """
-    It runs the app
+    Runs the app
 
-    :param host: IP address
-        '0.0.0.0' for public access
+    :param host: str
+        IP Address where the server serves
+        '0.0.0.0' for public address
     :param port: int
     :param debug: bool
         Enables debug output and hot reload
