@@ -17,7 +17,7 @@ _modules = {}
 
 def caller():
     """
-    Returns the module which calls swapy
+    Returns the name of the module which calls swapy
 
     :return: str
         Name of the module
@@ -387,7 +387,7 @@ def build_app(module):
 
 class State:
     """
-    state_ class for every module
+    State for every module
     """
     _slots__ = ['url_map', 'middlewares', 'on_error', 'on_not_found', 'routes', 'ssl', 'shared', 'environment', 'debug']
 
@@ -419,6 +419,11 @@ class Environment:
         self.production = production
 
     def parse(self, data):
+        """
+        Parses the environment dict data into this class
+
+        :param data: dict
+        """
         self.development = data.get('development')
         self.production = data.get('production')
         data.pop('development')
@@ -426,16 +431,41 @@ class Environment:
         self.data = data
 
     def __getitem__(self, item):
-        self.get(item)
+        """
+        Returns the value by the given item
+
+        Example:
+            environment['my_item']
+
+        :param item: str
+        :return: object
+        """
+        return self.get(item)
 
     def __setitem__(self, key, value):
+        """
+        Sets a value for the given key in this environment
+
+        :param key: str
+        :param value: object
+        """
         self.set(key, value)
 
     def __repr__(self):
+        """
+        Returns the whole data
+
+        :return: dict
+        """
         return self.runtime_data
 
     @property
     def runtime_data(self):
+        """
+        Returns the whole data
+
+        :return: dict
+        """
         data = self.data
         runtime = 'development' if self._state.debug else 'production'
         if self.production and self.development:
@@ -448,9 +478,27 @@ class Environment:
         return data
 
     def get(self, key):
+        """
+        Returns the value by the given key
+
+        Example:
+            environment['my_item']
+
+        :param key: str
+        :return: object
+        """
         return self.runtime_data.get(key)
 
     def set(self, key, value, runtime=None):
+        """
+        Sets a value for the given key in this environment
+
+        :param key: str
+        :param value: object
+        :param runtime: str
+            Should be 'development' or 'production'
+            Default = None
+        """
         if key == 'development' or key == 'production':
             raise AttributeError('Key {} is a reserved environment variable. You can\'t use it it this case.')
         if runtime is None:
