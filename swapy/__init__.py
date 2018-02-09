@@ -44,7 +44,7 @@ def redirect(location, code=301):
         It should be any 3xx code
         See more at Wikipedia - Http Status Codes
         Default = 301
-    :return: Response
+    :return: :class:`swapy.wrappers.Response`
         Redirect response
     """
     location = iri_to_uri(location, safe_conversion=True)
@@ -66,8 +66,7 @@ def file(path, name=None):
         Name of the file which will be returned.
         If it is None the name is like the real file name.
         Default = None
-    :return: FileWrapper
-        FileWrapper class from werkzeug
+    :return: :class:`werkzeug.wsgi.FileWrapper`
     """
     if not os.path.isabs(path):
         path = os.path.abspath(_utils.caller_frame().f_globals['__file__'])
@@ -157,8 +156,8 @@ def error(f):
     """
     Registers a function as error handler
 
-    :param f: callable
-        Callable should receive an Exception object as parameter
+    :param f: function
+        Function should receive an Exception object as parameter
     """
     _utils.error(_utils.caller(), f)
 
@@ -178,8 +177,8 @@ def not_found(f):
     """
     Registers a function as 404 error handler
 
-    :param f: callable
-        Callable should receive an Exception object as parameter
+    :param f: function
+        Function should receive an :class:`werkzeug.exceptions.Exception` object as parameter
     """
     _utils.not_found(_utils.caller(), f)
 
@@ -192,7 +191,7 @@ def on(url='/', methods=('GET', 'POST', 'PUT', 'DELETE')):
     :param methods: list | tuple
         HTTP method
         Default = ('GET', 'POST', 'PUT', 'DELETE')
-    :return: callable
+    :return: function
     """
     return _utils.register_route(_utils.caller(), url, methods)
 
@@ -202,7 +201,7 @@ def on_get(url='/'):
     Route registerer for GET http method
 
     :param url: str
-    :return: callable
+    :return: function
     """
     return _utils.register_route(_utils.caller(), url, methods=['GET'])
 
@@ -212,7 +211,7 @@ def on_post(url='/'):
     Route registerer for POST http method
 
     :param url: str
-    :return: callable
+    :return: function
     """
     return _utils.register_route(_utils.caller(), url, methods=['POST'])
 
@@ -222,7 +221,7 @@ def on_put(url='/'):
     Route registerer for PUT http method
 
     :param url: str
-    :return: callable
+    :return: function
     """
     return _utils.register_route(_utils.caller(), url, methods=['PUT'])
 
@@ -232,7 +231,7 @@ def on_delete(url='/'):
     Route registerer for DELETE http method
 
     :param url: str
-    :return: callable
+    :return: function
     """
     return _utils.register_route(_utils.caller(), url, methods=['DELETE'])
 
@@ -308,7 +307,7 @@ def use(*middlewares_):
     """
     Registers middlewares for global use
 
-    :param middlewares_: callable[]
+    :param middlewares_: function[]
          Arguments of middlewares (decorators)
     """
     _utils.use(_utils.caller(), *middlewares_)
@@ -318,7 +317,7 @@ def app():
     """
     Returns the built app
 
-    :return: callable
+    :return: function
         The app
     """
     return _utils.build_app(_utils.caller())

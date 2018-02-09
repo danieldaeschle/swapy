@@ -36,9 +36,9 @@ def json_middleware(f):
     """
     Returns every output from an route which has the JSON middleware to a JSON string
     
-    :param f: callable
+    :param f: function
         The route
-    :return: callable
+    :return: function
     """
     def handle(*args, **kwargs):
         result = f(*args, **kwargs)
@@ -56,8 +56,8 @@ def html_middleware(f):
     """
     Appends a 'text/html' Content-Type header to each response from a route
 
-    :param f: callable
-    :return: callable
+    :param f: function
+    :return: function
     """
     def handle(*args, **kwargs):
         result = f(*args, **kwargs)
@@ -71,8 +71,8 @@ def cors_middleware(f):
     """
     Appends CORS headers to each response from a route
 
-    :param f: callable
-    :return: callable
+    :param f: function
+    :return: function
     """
     def handle(req):
         result = f(req)
@@ -94,8 +94,8 @@ def expect_keys_middleware(f):
     """
     Returns a 400 error to the client if the route function tries to get a key from an object and cause a KeyError
 
-    :param f: callable
-    :return: callable
+    :param f: function
+    :return: function
     """
     def handle(*args, **kwargs):
         try:
