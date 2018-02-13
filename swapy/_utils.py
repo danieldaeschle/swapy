@@ -37,7 +37,7 @@ def caller_frame():
 
 def init(module):
     """
-    Adds a state_ object for every module into the modules list
+    Adds a state object for every module into the modules list
 
     :param module: str
         The name of the module which should be initialized
@@ -85,7 +85,7 @@ def error(module, f):
 
     :param module: str
         Name of the module
-    :param f: callable
+    :param f: function
         The function which will be set for the module as error handler
     """
     state_ = state(module)
@@ -99,7 +99,7 @@ def not_found_handler(e, module):
     :param e: Exception
     :param module: str
         Name of the module
-    :return: WResponse | Exception
+    :return: Response | Exception
     """
     state_ = state(module)
     try:
@@ -155,10 +155,10 @@ def register_route(module, url='/', methods=('GET', 'POST', 'PUT', 'DELETE')):
         Name of the module
     :param url: str
         Default = '/'
-    :param methods:
-        HTTP methods
+    :param methods: list | tuple
+        HTTP methods as strings
         Default = ('GET', 'POST', 'PUT', 'DELETE')
-    :return: callable
+    :return: function
         A decorator which registers a function
     """
     state_ = state(module)
@@ -179,8 +179,8 @@ def register_route(module, url='/', methods=('GET', 'POST', 'PUT', 'DELETE')):
         """
         Registers a function as route
 
-        :param f: callable
-        :return: callable
+        :param f: function
+        :return: function
             Returns f
         """
         def handle(*args, **kwargs):
@@ -214,7 +214,7 @@ def use(module, *middlewares_):
 
     :param module: str
         Name of the module
-    :param middlewares_: callable[]
+    :param middlewares_: function[]
         List of decorators / middlewares
     """
     state_ = state(module)
@@ -269,11 +269,11 @@ def favicon(module, path):
 
 def not_found(module, f):
     """
-    Registers "not found" function
+    Registers "not found" function for the 404 error
 
     :param module: str
         Name of the module
-    :param f: callable
+    :param f: function
         Function which will be registered
     """
     state_ = state(module)
@@ -282,7 +282,7 @@ def not_found(module, f):
 
 def include(module, target, prefix=''):
     """
-    Includes all functions from source module into target module
+    Includes all functions from source module into the target module
 
     :param module: str
         Name of the source module
@@ -331,7 +331,7 @@ def build_app(module):
 
     :param module: str
         Name of the module
-    :return: callable
+    :return: function
         The application
     """
     state_ = state(module)
