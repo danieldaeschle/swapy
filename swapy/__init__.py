@@ -307,8 +307,8 @@ def use(*middlewares_):
     """
     Registers middlewares for global use
 
-    :param middlewares_: function[]
-         Arguments of middlewares (decorators)
+    :param middlewares_: list
+         List of decorators / middlewares (functions)
     """
     _utils.use(_utils.caller(), *middlewares_)
 

@@ -1,5 +1,5 @@
-from werkzeug.wrappers import Response
-from werkzeug.test import Client
+from werkzeug.wrappers import Response as _Response
+from werkzeug.test import Client as _Client
 
 
 def client(app):
@@ -10,4 +10,4 @@ def client(app):
         The application function
     :return: Client
     """
-    return Client(app, Response)
+    return _Client(app, _Response)

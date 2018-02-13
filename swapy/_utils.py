@@ -49,7 +49,7 @@ def init(module):
 
 def state(module):
     """
-    Returns state_ of the given module
+    Returns state of the given module
 
     :param module: str
         The name of the module
@@ -99,7 +99,7 @@ def not_found_handler(e, module):
     :param e: Exception
     :param module: str
         Name of the module
-    :return: Response | Exception
+    :return: :class:`werkzeug.wrappers.Response` | Exception
     """
     state_ = state(module)
     try:
@@ -118,7 +118,7 @@ def shared(frame, directory):
 
     :param frame: Frame
         Frame of the module
-    :param directory:
+    :param directory: str
         Absolute path or relative path
     """
     module_name = frame.f_globals['__name__']
@@ -214,8 +214,8 @@ def use(module, *middlewares_):
 
     :param module: str
         Name of the module
-    :param middlewares_: function[]
-        List of decorators / middlewares
+    :param middlewares_: list
+        List of decorators / middlewares (functions)
     """
     state_ = state(module)
     for middleware in middlewares_:
