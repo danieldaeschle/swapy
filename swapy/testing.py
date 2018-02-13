@@ -6,7 +6,7 @@ def client(app):
     """
     Returns the werkzeug Client class with the Response class
 
-    :param app: callable
+    :param app: function
         The application function
     :return: Client
     """

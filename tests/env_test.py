@@ -8,6 +8,7 @@ else:
     sys.path.append(os.path.abspath('./'))
 
 import swapy
+from swapy.testing import client
 import env_another
 
 swapy.include(env_another)
@@ -37,4 +38,20 @@ def secure_cookie(req):
     return req.secure_cookie.get('key')
 
 
-application = swapy.app()
+c = client(swapy.app())
+
+
+def test_environment():
+    r = c.get('checkSecretKey')
+    assert r.data == b'secret'
+
+
+def test_env_another():
+    r = c.get('env')
+    assert r.data == b'secret'
+
+
+def test_secure_cookie():
+    c.get('set_secure_cookie')
+    r = c.get('get_secure_cookie')
+    assert r.data == b'value'

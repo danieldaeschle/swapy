@@ -1,4 +1,4 @@
-from app import application
+from app_test import application
 from waitress import serve
 
 if __name__ == '__main__':
