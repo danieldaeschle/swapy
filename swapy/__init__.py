@@ -69,7 +69,8 @@ def file(path, name=None):
     :return: :class:`werkzeug.wsgi.FileWrapper`
     """
     if not os.path.isabs(path):
-        path = os.path.abspath(_utils.caller_frame().f_globals['__file__'])
+        caller_file = os.path.abspath(_utils.caller_frame().f_globals['__file__'])
+        path = caller_file.replace(os.path.basename(caller_file), path)
     f = open(path, 'rb')
     if file:
         mime = mimetypes.guess_type(path)[0]
