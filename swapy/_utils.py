@@ -37,7 +37,7 @@ def caller_frame():
 
 def init(module):
     """
-    Adds a state_ object for every module into the modules list
+    Adds a state object for every module into the modules list
 
     :param module: str
         The name of the module which should be initialized
@@ -49,7 +49,7 @@ def init(module):
 
 def state(module):
     """
-    Returns state_ of the given module
+    Returns state of the given module
 
     :param module: str
         The name of the module
@@ -99,7 +99,7 @@ def not_found_handler(e, module):
     :param e: Exception
     :param module: str
         Name of the module
-    :return: WResponse | Exception
+    :return: :class:`werkzeug.wrappers.Response` | Exception
     """
     state_ = state(module)
     try:
@@ -118,7 +118,7 @@ def shared(frame, directory):
 
     :param frame: Frame
         Frame of the module
-    :param directory:
+    :param directory: str
         Absolute path or relative path
     """
     module_name = frame.f_globals['__name__']
@@ -155,8 +155,8 @@ def register_route(module, url='/', methods=('GET', 'POST', 'PUT', 'DELETE')):
         Name of the module
     :param url: str
         Default = '/'
-    :param methods:
-        HTTP methods
+    :param methods: list | tuple
+        HTTP methods as strings
         Default = ('GET', 'POST', 'PUT', 'DELETE')
     :return: function
         A decorator which registers a function
@@ -220,8 +220,8 @@ def use(module, *middlewares_):
 
     :param module: str
         Name of the module
-    :param middlewares_: function[]
-        List of decorators / middlewares
+    :param middlewares_: list
+        List of decorators / middlewares (functions)
     """
     state_ = state(module)
     for middleware in middlewares_:
@@ -275,7 +275,7 @@ def favicon(module, path):
 
 def not_found(module, f):
     """
-    Registers a "not found" function
+    Registers "not found" function for the 404 error
 
     :param module: str
         Name of the module
@@ -288,7 +288,7 @@ def not_found(module, f):
 
 def include(module, target, prefix=''):
     """
-    Includes all functions from source module into target module
+    Includes all functions from source module into the target module
 
     :param module: str
         Name of the source module
