@@ -186,7 +186,7 @@ def register_route(module, url='/', methods=('GET', 'POST', 'PUT', 'DELETE')):
         def handle(*args, **kwargs):
             target = f
             for m in state_.middlewares:
-                target = m(target(*args, **kwargs))
+                target = m(target)
             try:
                 res = target(*args, **kwargs)
             except TypeError as e:
@@ -202,7 +202,13 @@ def register_route(module, url='/', methods=('GET', 'POST', 'PUT', 'DELETE')):
         name = str(uuid.uuid4())
         rule = Rule(url, methods=methods, endpoint=name, strict_slashes=False)
         state_.url_map.add(rule)
-        state_.routes[name] = {'function': handle, 'on_error': state_.on_error, 'url': url}
+        state_.routes[name] = {
+            'function': handle,
+            'on_error': state_.on_error,
+            'url': url,
+            'docs': f.__doc__,
+            'methods': methods
+        }
         return f
 
     return decorator
