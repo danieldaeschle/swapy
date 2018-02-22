@@ -361,7 +361,9 @@ def build_app(module):
                 f = state_.routes[endpoint]['function']
                 res = response_from(f(req))
 
-                if not isinstance(res.content, str):
+                try:
+                    iter(res)
+                except TypeError:
                     raise InternalServerError('Result {} of \'{}\' is not a valid response'
                                               .format(res.content, req.path))
                 ret = Response(res.content, res.code, res.headers, direct_passthrough=True)
