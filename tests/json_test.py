@@ -29,6 +29,11 @@ def test_list():
     return [1, 2]
 
 
+@swapy.on('routes')
+def ret_routes():
+    return swapy.routes()
+
+
 if __name__ == '__main__':
     swapy.run(debug=True)
 

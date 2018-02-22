@@ -184,6 +184,16 @@ def not_found(f):
     _utils.not_found(_utils.caller(), f)
 
 
+def routes():
+    """
+    Returns a list of all registered routes
+
+    :return: list
+    """
+    module = _utils.caller()
+    return [item[1]['url'] for item in list(_utils.state(module).routes.items())]
+
+
 def on(url='/', methods=('GET', 'POST', 'PUT', 'DELETE')):
     """
     Route registerer for all http methods
