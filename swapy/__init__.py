@@ -187,6 +187,7 @@ def not_found(f):
 def routes():
     """
     Returns a list of all registered routes
+    TODO documentation
 
     :return: list
     """
