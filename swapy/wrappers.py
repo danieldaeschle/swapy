@@ -10,7 +10,6 @@ def response_from(args):
     :param args: tuple | Response
     :return: Response
     """
-    print(args)
     if isinstance(args, tuple):
         if len(args) == 1 and isinstance(args[0], Response):
             return args[0]
