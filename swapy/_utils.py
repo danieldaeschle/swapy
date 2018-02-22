@@ -362,7 +362,7 @@ def build_app(module):
                 res = response_from(f(req))
 
                 try:
-                    iter(res)
+                    iter(res.content)
                 except TypeError:
                     raise InternalServerError('Result {} of \'{}\' is not a valid response'
                                               .format(res.content, req.path))
