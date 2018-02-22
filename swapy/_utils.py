@@ -354,9 +354,8 @@ def build_app(module):
                 req.url_args = args
                 f = state_.routes[endpoint]['function']
                 res = response_from(f(req))
-                try:
-                    iter(res.content)
-                except TypeError:
+
+                if not isinstance(res.content, str):
                     raise InternalServerError('Result {} of \'{}\' is not a valid response'
                                               .format(res.content, req.path))
                 ret = Response(res.content, res.code, res.headers, direct_passthrough=True)
@@ -388,6 +387,10 @@ def build_app(module):
 class State:
     """
     State for every module
+
+    routes: dict
+        Contains all registered routes.
+        Example: {'/': {'function': function, 'on_error': function, 'url': str}}
     """
     _slots__ = ['url_map', 'middlewares', 'on_error', 'on_not_found', 'routes', 'ssl', 'shared', 'environment', 'debug']
 
