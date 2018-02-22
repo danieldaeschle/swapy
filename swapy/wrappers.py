@@ -7,10 +7,11 @@ def response_from(args):
     """
     Casts a result from a route function into a response object
 
-    :param args: tuple | list | Response
+    :param args: tuple | Response
     :return: Response
     """
-    if isinstance(args, (tuple, list)):
+    print(args)
+    if isinstance(args, tuple):
         if len(args) == 1 and isinstance(args[0], Response):
             return args[0]
         return Response(*args)

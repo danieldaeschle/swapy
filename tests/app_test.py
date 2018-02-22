@@ -9,7 +9,7 @@ if os.path.exists('../swapy/__init__.py'):
 else:
     sys.path.append(os.path.abspath('./'))
 from swapy import on_get, run, file, redirect, config, app, on_post, on_put, render
-from swapy.middlewares import JsonMiddleware, JsonException, ExpectKeysMiddleware, HtmlMiddleware
+from swapy.middlewares import JsonException, ExpectKeysMiddleware, HtmlMiddleware
 from swapy.wrappers import Response
 from swapy.testing import client
 
@@ -46,8 +46,8 @@ def create(req):
 
 @on_get('db')
 def database():
-    c = conn.cursor()
-    c.execute("SELECT name FROM sqlite_master WHERE type='table';")
+    cs = conn.cursor()
+    cs.execute("SELECT name FROM sqlite_master WHERE type='table';")
     return 'true'
 
 
@@ -59,13 +59,7 @@ def redirect_to_google():
 
 @on_get('/app-file')
 def app_file():
-    return file('test/app_test.py')
-
-
-@on_get('file-json')
-@JsonMiddleware
-def file_json():
-    return file('test/app_test.py')
+    return file('app_test.py')
 
 
 @on_get('/error')
@@ -76,12 +70,6 @@ def error():
 @on_get('/error2')
 def error():
     raise TypeError('lol')
-
-
-@on_get('json')
-@JsonMiddleware
-def get_json():
-    return {'message': 'hi'}
 
 
 @on_get('html')
@@ -119,11 +107,6 @@ c = client(app())
 
 def test_app_file():
     r = c.get('app-file')
-    assert r.headers['Content-Disposition'] == 'attachment;filename=app_test.py'
-
-
-def test_app_file_json():
-    r = c.get('file-json')
     assert r.headers['Content-Disposition'] == 'attachment;filename=app_test.py'
 
 
@@ -175,16 +158,6 @@ def test_form_code():
 def test_content():
     r = c.post('create', data={'test': 'something'})
     assert r.data == b'something'
-
-
-def test_json():
-    r = c.get('json')
-    assert json.loads(r.data.decode())['message'] == 'hi'
-
-
-def test_json_header():
-    r = c.get('json')
-    assert r.headers['Content-Type'] == 'application/json'
 
 
 def test_sqlite():
