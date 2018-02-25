@@ -14,6 +14,7 @@ api_docs.init()
 
 @swapy.on('test')
 def test():
+    """HI :)"""
     return 'Hi!'
 
 
@@ -24,6 +25,6 @@ if __name__ == '__main__':
     swapy.run(debug=True)
 
 
-# def test_works():
-#     r = c.get('docs')
-#     assert r.data.decode() == 'Docs!'
+def test_works():
+    r = c.get('docs')
+    assert 'HI :)' in r.data.decode()

@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <title>Title</title>
+    <link rel="stylesheet" href="/docs-style">
+</head>
+
+<body>
+    <div class="section">
+        <div class="container">
+            {% for route in routes %}
+            <div class="box">
+                <div class="level">
+                    <div class="level-left">
+                        <h1 class="is-size-4 level-item">{{ route.url }}</h1>
+                    </div>
+                    <div class="level-right">
+                        {% for method in route.methods %}
+                        <span class="tag is-primary level-item">{{ method }}</span>
+                        {% endfor %}
+                    </div>
+                </div>
+                <div>
+                    <p>
+                        {{ route.docs }}
+                    </p>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+</body>
+
+</html>
