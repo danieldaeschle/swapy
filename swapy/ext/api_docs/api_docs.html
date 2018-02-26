@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <title>Title</title>
@@ -11,34 +12,123 @@
         }
     </style>
 </head>
+
 <body>
-    <div class="section">
-        <div class="container">
-            {% for route in routes %}
-            <div class="box">
-                <div class="level">
-                    <div class="level-left">
-                        <button class="button is-white">
-                            <span class="icon">
-                                <i class="fa fa-arrow-down"></i>
-                            </span>
-                        </button>
-                        <h1 class="is-size-4 level-item url-title">{{ route.url }}</h1>
-                    </div>
-                    <div class="level-right">
-                        {% for method in route.methods %}
-                        <span class="tag is-primary level-item">{{ method }}</span>
-                        {% endfor %}
-                    </div>
-                </div>
-                <div>
-                    <p>
-                        {{ route.docs }}
-                    </p>
-                </div>
+    <div class="section container">
+        <div class="columns">
+            <div class="column is-one-quarter container">
+                <nav class="panel">
+                    <p class="panel-heading">Routes</p>
+                    {% for route in routes %}
+                    <a class="panel-block" href="#{{ route.url }}">
+                        <span class="panel-icon">
+                            <i class="fas fa-book"></i>
+                        </span>
+                        {{ route.url }}
+                    </a>
+                    {% endfor %}
+                </nav>
             </div>
-            {% endfor %}
+            <div class="column is-three-quarters container">
+                {% for route in routes %}
+                <div class="box" id="{{ route.url }}">
+                    <div class="level">
+                        <div class="level-left">
+                            <div class="level-item" style="justify-content: flex-start;">
+                                <button id="toggle-{{ route.url }}" class="button is-white" onclick="toggle('{{ route.url }}')">
+                                    <span class="icon">
+                                        <i class="fa fa-arrow-down"></i>
+                                    </span>
+                                </button>
+                                <span class="is-size-4 url-title">{{ route.url }}</span>
+                            </div>
+                        </div>
+                        <div class="level-right">
+                            {% for method in route.methods %}
+                            <span class="tag is-primary level-item">{{ method }}</span>
+                            {% endfor %}
+                        </div>
+                    </div>
+                    <div class="content" style="display: none;">
+                        {% if route.docs %}
+                        <h2>Documentation</h2>
+                        <p>
+                            {{ route.docs }}
+                        </p>
+                        {% endif %}
+                        <h2>Testing</h2>
+                        <b>URL</b>
+                        <input id="request-url-{{ route.url }}" style="margin-bottom: 1em;" value="{{ route.url }}" class="input" type="text">
+                        <div class="columns">
+                            <div class="column is-half">
+                                <b>Request</b>
+                                <div style="margin-bottom: 1em;">
+                                    {% for method in route.methods %}
+                                    <button class="button" onclick="request('{{ route.url }}', '{{ method }}')">{{ method }}</button>
+                                    {% endfor %}
+                                </div>
+                                {% if 'POST' in route.methods or 'PUT' in route.methods %}
+                                <b>Headers</b>
+                                <textarea style="margin-bottom: 1em;" class="textarea" rows="2"></textarea>
+
+                                <b>Payload</b>
+                                <textarea id="request-payload-{{ route.url }}" style="margin-bottom: 1em;" class="textarea" rows="5"></textarea>
+                                {% endif %}
+                            </div>
+                            <div class="column is-half">
+                                <b>Response Body</b>
+                                <pre id="response-body-{{ route.url }}"></pre>
+                                <b>Response Code</b>
+                                <pre id="response-code-{{ route.url }}"></pre>
+                                <b>Response Headers</b>
+                                <pre id="response-headers-{{ route.url }}"></pre>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
         </div>
     </div>
+
+    <button class="button" onclick="window.scroll(0, 0)" style="position: fixed; left: 12px; bottom: 12px;">
+        <span class="icon">
+            <i class="fa fa-arrow-up"></i>
+        </span>
+    </button>
+
+    <script>
+        function toggle(id) {
+            var toggleButton = document.getElementById('toggle-' + id);
+            var icon = toggleButton.querySelector('i');
+            var section = document.getElementById(id);
+            var content = section.querySelector('.content');
+            if (icon.classList.contains('fa-arrow-down')) {
+                icon.classList.remove('fa-arrow-down');
+                icon.classList.add('fa-arrow-up');
+                content.style.display = 'block';
+            } else {
+                icon.classList.remove('fa-arrow-up');
+                icon.classList.add('fa-arrow-down');
+                content.style.display = 'none';
+            }
+        }
+
+        function request(id, method) {
+            var url = document.getElementById('request-url-' + id).value;
+            var payload = document.getElementById('request-payload-' + id).value;
+            var req = new XMLHttpRequest();
+            req.onreadystatechange = function () {
+                if (this.readyState === 4) {
+                    document.getElementById('response-body-' + id).innerText = this.responseText;
+                    document.getElementById('response-code-' + id).innerText = this.status + ' ' + this.statusText;
+                    document.getElementById('response-headers-' + id).innerText = this.getAllResponseHeaders();
+                }
+            }
+            req.open(method, url, true);
+            req.send(payload);
+        }
+    </script>
 </body>
+
 </html>

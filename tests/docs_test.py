@@ -8,6 +8,7 @@ else:
 import swapy
 from swapy.ext import api_docs
 from swapy.testing import client
+from swapy.middlewares import JsonMiddleware
 
 api_docs.init()
 
@@ -16,6 +17,18 @@ api_docs.init()
 def test():
     """HI :)"""
     return 'Hi!'
+
+
+@swapy.on_get('another')
+def another():
+    """Just another test"""
+    return ':)'
+
+
+@swapy.on('json')
+@JsonMiddleware
+def json(req):
+    return req.json
 
 
 c = client(swapy.app())

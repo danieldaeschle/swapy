@@ -400,7 +400,6 @@ def build_app(module):
         shares = {}
         for share in state_.shared:
             shares[share[1]] = share[0]
-        print(shares)
         application = SharedDataMiddleware(application, shares)
     return application
 
