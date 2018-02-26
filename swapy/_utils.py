@@ -112,7 +112,7 @@ def not_found_handler(e, module):
         return e
 
 
-def shared(frame, directory):
+def shared(frame, directory, url=None):
     """
     Adds a directory as shared for the given module
 
@@ -120,14 +120,25 @@ def shared(frame, directory):
         Frame of the module
     :param directory: str
         Absolute path or relative path
+    :param url: str
+        Defines the url endpoint
+        Example: 'static' -> '/static'
+        Default: Name of directory
+        TODO docs
     """
     module_name = frame.f_globals['__name__']
     state_ = state(module_name)
     if directory is True:
         directory = 'shared'
-    directory = os.path.join(os.path.dirname(frame.f_globals['__file__']), directory)
+    if url is None:
+        url = directory
+    if not url.startswith('/'):
+        url = '/{}'.format(url)
+    if not os.path.isabs(directory):
+        # TODO docs
+        directory = os.path.join(os.path.dirname(frame.f_globals['__file__']), directory)
     directory = directory.replace('\\', '/')
-    state_.shared = directory
+    state_.shared.append((directory, url))
 
 
 def find_route(name):
@@ -386,9 +397,11 @@ def build_app(module):
         return result
 
     if state_.shared:
-        application = SharedDataMiddleware(application, {
-            '/shared': state_.shared
-        })
+        shares = {}
+        for share in state_.shared:
+            shares[share[1]] = share[0]
+        print(shares)
+        application = SharedDataMiddleware(application, shares)
     return application
 
 
@@ -409,7 +422,7 @@ class State:
         self.on_not_found = DefaultException
         self.routes = {}
         self.ssl = None
-        self.shared = None
+        self.shared = []
         self.environment = Environment(self)
         self.debug = False
 

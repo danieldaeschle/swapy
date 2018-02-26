@@ -72,13 +72,33 @@ def file(path, name=None):
         caller_file = os.path.abspath(_utils.caller_frame().f_globals['__file__'])
         path = caller_file.replace(os.path.basename(caller_file), path)
     f = open(path, 'rb')
-    if file:
+    if f:
         mime = mimetypes.guess_type(path)[0]
         size = os.path.getsize(path)
         filename = os.path.basename(path) if not name else name
         headers = {'Content-Type': mime, 'Content-Disposition': 'attachment;filename=' + filename,
                    'Content-Length': size}
         return FileWrapper(f, 8192), 200, headers
+    raise FileNotFoundError()
+
+
+def raw_file(path):
+    """
+    Returns the raw content of a file
+
+    :param path: str
+        Path to the file
+    :return: str
+    """
+    if not os.path.isabs(path):
+        caller_file = os.path.abspath(_utils.caller_frame().f_globals['__file__'])
+        path = caller_file.replace(os.path.basename(caller_file), path)
+    f = open(path, 'r')
+    if f:
+        mime = mimetypes.guess_type(path)[0]
+        size = os.path.getsize(path)
+        headers = {'Content-Type': mime, 'Content-Length': size}
+        return f.read(), 200, headers
     raise FileNotFoundError()
 
 
@@ -163,15 +183,20 @@ def error(f):
     _utils.error(_utils.caller(), f)
 
 
-def shared(directory):
+def shared(directory, url=None):
     """
     Registers a directory as shared
 
     :param directory: str
         Path to the directory
+    :param url: str
+        param url: str
+        Defines the url endpoint
+        Example: 'static' -> '/static'
+        TODO docs
     """
     module = _utils.caller_frame()
-    _utils.shared(module, directory)
+    _utils.shared(module, directory, url)
 
 
 def not_found(f):
