@@ -1,6 +1,7 @@
 import inspect
 import uuid
 import os
+import re
 
 from werkzeug.wsgi import responder, SharedDataMiddleware
 from werkzeug.serving import make_ssl_devcert
@@ -216,12 +217,11 @@ def register_route(module, url='/', methods=('GET', 'POST', 'PUT', 'DELETE')):
         state_.routes[name] = {
             'function': handle,
             'on_error': state_.on_error,
-            'url': url,
+            'url': re.sub(r'<(\w*:)?(\w*)>', r':\2', url),
             'docs': f.__doc__,
             'methods': methods
         }
         return f
-
     return decorator
 
 
@@ -368,7 +368,7 @@ def build_app(module):
         def dispatch(endpoint, args):
             try:
                 args = dict(args)
-                req.url_args = args
+                req.url_args = args  # TODO docs
                 f = state_.routes[endpoint]['function']
                 res = response_from(f(req))
 

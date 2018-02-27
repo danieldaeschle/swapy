@@ -3,12 +3,25 @@
 
 <head>
     <meta charset="UTF-8">
-    <title>Title</title>
+    <title>API Documentation</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <link rel="stylesheet" href="/docs-static/bulma.css">
     <link rel="stylesheet" href="/docs-static/fontawesome/fontawesome-all.min.css">
     <style>
-        .url-title {
-            margin-left: 32px;
+        .list {
+            border: 1px solid rgb(219, 219, 219);
+            border-radius: 3px;
+            margin: 16px 0;
+        }
+
+        .list-item {
+            padding: 8px;
+            border-top: 1px solid rgb(219, 219, 219);
+            margin: 0 !important;
+        }
+
+        .list-item:first-child {
+            border-top: none;
         }
     </style>
 </head>
@@ -22,7 +35,7 @@
                     {% for route in routes %}
                     <a class="panel-block" href="#{{ route.url }}">
                         <span class="panel-icon">
-                            <i class="fas fa-book"></i>
+                            <i class="fa fa-link"></i>
                         </span>
                         {{ route.url }}
                     </a>
@@ -34,14 +47,7 @@
                 <div class="box" id="{{ route.url }}">
                     <div class="level">
                         <div class="level-left">
-                            <div class="level-item" style="justify-content: flex-start;">
-                                <button id="toggle-{{ route.url }}" class="button is-white" onclick="toggle('{{ route.url }}')">
-                                    <span class="icon">
-                                        <i class="fa fa-arrow-down"></i>
-                                    </span>
-                                </button>
-                                <span class="is-size-4 url-title">{{ route.url }}</span>
-                            </div>
+                            <span class="is-size-4 level-item" style="justify-content: flex-start;">{{ route.url }}</span>
                         </div>
                         <div class="level-right">
                             {% for method in route.methods %}
@@ -67,13 +73,16 @@
                                     <button class="button" onclick="request('{{ route.url }}', '{{ method }}')">{{ method }}</button>
                                     {% endfor %}
                                 </div>
-                                {% if 'POST' in route.methods or 'PUT' in route.methods %}
                                 <b>Headers</b>
-                                <textarea style="margin-bottom: 1em;" class="textarea" rows="2"></textarea>
-
+                                <div class="list" id="request-headers-{{ route.url }}"></div>
+                                <form onsubmit="return addHeader(this, '{{ route.url }}')" style="margin-bottom: 1em; display: flex;">
+                                    <input class="input" name="key" type="text" placeholder="Key" required>
+                                    <input class="input" name="value" type="text" placeholder="Value" required>
+                                    <button class="button">Add header</button>
+                                </form>
+                                {% if 'POST' in route.methods or 'PUT' in route.methods %}
                                 <b>Payload</b>
-                                <textarea id="request-payload-{{ route.url }}" style="margin-bottom: 1em;" class="textarea" rows="5"></textarea>
-                                {% endif %}
+                                <textarea id="request-payload-{{ route.url }}" style="margin-bottom: 1em;" class="textarea" rows="5"></textarea> {% endif %}
                             </div>
                             <div class="column is-half">
                                 <b>Response Body</b>
@@ -85,6 +94,11 @@
                             </div>
                         </div>
                     </div>
+                    <button id="toggle-{{ route.url }}" class="button is-white" onclick="toggle('{{ route.url }}')">
+                        <span class="icon">
+                            <i class="fa fa-arrow-down"></i>
+                        </span>
+                    </button>
                 </div>
                 {% endfor %}
             </div>
@@ -98,6 +112,17 @@
     </button>
 
     <script>
+        function addHeader(form, id) {
+            var html = '<div class="level list-item">' +
+                '<span class="level-item level-left header-item">' + form.key.value + ': ' + form.value.value + '</span>' +
+                '<a class="delete level-item level-right" onclick="this.parentNode.remove()"></a>' +
+                '</div>';
+            var headers = document.getElementById('request-headers-' + id);
+            headers.innerHTML += html;
+            form.reset();
+            return false;
+        }
+
         function toggle(id) {
             var toggleButton = document.getElementById('toggle-' + id);
             var icon = toggleButton.querySelector('i');
@@ -116,7 +141,15 @@
 
         function request(id, method) {
             var url = document.getElementById('request-url-' + id).value;
-            var payload = document.getElementById('request-payload-' + id).value;
+            var payload = document.getElementById('request-payload-' + id);
+            if (payload) {
+                payload = payload.value;
+            }
+            var headerList = document.getElementById(id).querySelectorAll('.header-item');
+            NodeList.prototype.map = Array.prototype.map;
+            var headerItems = headerList.map(function (it) {
+                return {key: it.innerText.split(': ')[0], value: it.innerText.split(': ')[1]};
+            });
             var req = new XMLHttpRequest();
             req.onreadystatechange = function () {
                 if (this.readyState === 4) {
@@ -126,6 +159,9 @@
                 }
             }
             req.open(method, url, true);
+            headerItems.forEach(function (it) {
+                req.setRequestHeader(it.key, it.value);
+            });
             req.send(payload);
         }
     </script>

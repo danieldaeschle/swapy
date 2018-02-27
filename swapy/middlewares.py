@@ -27,6 +27,8 @@ def default_exception(error):
     :return: str
     """
     if isinstance(error, HTTPException):
+        if error.code == 404:
+            return '404 Not Found', error.code
         return str(error), error.code
     else:
         return str(error), 500

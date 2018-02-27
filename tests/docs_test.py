@@ -19,10 +19,11 @@ def test():
     return 'Hi!'
 
 
-@swapy.on_get('another')
-def another():
+@swapy.on_get('another/<int:id>')
+def another(req):
     """Just another test"""
-    return ':)'
+    print(req.headers)
+    return str(req.url_args)
 
 
 @swapy.on('json')
