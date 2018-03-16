@@ -377,5 +377,5 @@ def run(host='127.0.0.1', port=5000, debug=False, module_name=None):
     state.debug = debug
     module = module_name if module_name else _utils.caller()
     if debug and module != '__main__':
-        print('Warning: Please do not run apps outside of main')
-    run_simple(host, port, _utils.build_app(module), use_debugger=debug, use_reloader=debug, ssl_context=state.ssl)
+        print('Warning: Please do not run apps outside of main')  # TODO Use logger
+    run_simple(host, port, _utils.build_app(module), use_reloader=debug, ssl_context=state.ssl)
