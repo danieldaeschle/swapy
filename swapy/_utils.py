@@ -202,10 +202,13 @@ def register_route(module, url='/', methods=('GET', 'POST', 'PUT', 'DELETE')):
             try:
                 res = target(*args, **kwargs)
             except TypeError as e:
-                if 'arguments' in str(e):
-                    res = target(**kwargs)
-                else:
-                    res = target(*args, **kwargs)
+                try:
+                    if 'arguments' in str(e):
+                        res = target(**kwargs)
+                    else:
+                        res = target(*args, **kwargs)
+                except BaseException as e:
+                    res = state_.on_error(e)
             if res:
                 return res
             else:
