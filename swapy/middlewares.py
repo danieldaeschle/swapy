@@ -6,16 +6,16 @@ from .wrappers import response_from
 def json_exception(error):
     """
     Exception middleware which returns the error as JSON string
-    -> {"message": error, "status_code": code}
+    -> {"error": error, "status_code": code}
     
     :param error: Exception
         The exception object
     :return: str
     """
     if isinstance(error, HTTPException):
-        return json.dumps({'message': str(error), 'status_code': error.code}, indent=4), error.code
+        return json.dumps({'error': error.description, 'status_code': error.code}, indent=4), error.code
     else:
-        return json.dumps({'message': str(error), 'status_code': 500}, indent=4), 500
+        return json.dumps({'error': str(error), 'status_code': 500}, indent=4), 500
 
 
 def default_exception(error):
